@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Gaze-Controlled Foveated Rendering</title>
+  <meta name="description"
+    content="Experience game-style Level of Detail based on where you look - a real-time foveated rendering demo">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="src/styles.css">
+</head>
+
+<body>
+  <!-- Hidden video element for camera -->
+  <video id="webcam" autoplay playsinline muted style="display:none;"></video>
+
+  <!-- ═══════════════════════════════════════════════════════════════════ -->
+  <!-- HOME SCREEN -->
+  <!-- ═══════════════════════════════════════════════════════════════════ -->
+  <div id="home-screen" class="screen"></div>
+
+  <!-- ═══════════════════════════════════════════════════════════════════ -->
+  <!-- DEMO SCREEN -->
+  <!-- ═══════════════════════════════════════════════════════════════════ -->
+  <div id="demo-screen" class="screen" style="display:none;"></div>
+
+  <!-- ═══════════════════════════════════════════════════════════════════ -->
+  <!-- RESULTS SCREEN -->
+  <!-- ═══════════════════════════════════════════════════════════════════ -->
+  <div id="results-screen" class="screen" style="display:none;"></div>
+
+  <!-- ═══════════════════════════════════════════════════════════════════ -->
+  <!-- CALIBRATION OVERLAY (shared) -->
+  <!-- ═══════════════════════════════════════════════════════════════════ -->
+  <div id="calibration-overlay" class="calibration-overlay" style="display:none;">
+    <div class="calibration-content">
+      <div id="calibration-point" class="calibration-point"></div>
+      <p id="calibration-status" class="calibration-status">Focus on the dot</p>
+    </div>
+  </div>
+
+  <script type="module" src="src/main.js"></script>
+</body>
+
+</html>
