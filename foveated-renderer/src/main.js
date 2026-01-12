@@ -3,6 +3,14 @@
  * Multi-screen architecture with Home → Calibration → Demo → Results flow
  */
 
+// Vercel Analytics
+import { inject } from '@vercel/analytics';
+import { injectSpeedInsights } from '@vercel/speed-insights';
+
+// Initialize Vercel Analytics
+inject();
+injectSpeedInsights();
+
 import { GazeEstimator } from './eye-tracking/GazeEstimator.js';
 import { CalibrationUI } from './calibration/CalibrationUI.js';
 import { RaymarchingRenderer } from './renderer/RaymarchingRenderer.js';

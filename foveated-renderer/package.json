@@ -12,7 +12,9 @@
     "vite": "^5.0.0"
   },
   "dependencies": {
+    "@mediapipe/camera_utils": "^0.3.1640029074",
     "@mediapipe/face_mesh": "^0.4.1633559619",
-    "@mediapipe/camera_utils": "^0.3.1640029074"
+    "@vercel/analytics": "^1.6.1",
+    "@vercel/speed-insights": "^1.3.1"
   }
 }
