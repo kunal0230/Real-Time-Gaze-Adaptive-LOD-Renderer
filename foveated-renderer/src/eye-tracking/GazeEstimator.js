@@ -3,9 +3,35 @@
  * Ported from EyeTrax gaze.py
  */
 
-import { FaceMesh } from '@mediapipe/face_mesh';
 import { LEFT_EYE_INDICES, RIGHT_EYE_INDICES, MUTUAL_INDICES } from './constants.js';
 import { RidgeRegression } from './RidgeRegression.js';
+
+// Load MediaPipe from CDN dynamically
+async function loadMediaPipe() {
+    return new Promise((resolve, reject) => {
+        // Check if already loaded
+        if (window.FaceMesh) {
+            resolve(window.FaceMesh);
+            return;
+        }
+
+        const script = document.createElement('script');
+        script.src = 'https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/face_mesh.js';
+        script.crossOrigin = 'anonymous';
+        script.onload = () => {
+            // Wait a bit for the module to initialize
+            setTimeout(() => {
+                if (window.FaceMesh) {
+                    resolve(window.FaceMesh);
+                } else {
+                    reject(new Error('FaceMesh not available after script load'));
+                }
+            }, 100);
+        };
+        script.onerror = () => reject(new Error('Failed to load MediaPipe FaceMesh'));
+        document.head.appendChild(script);
+    });
+}
 
 export class GazeEstimator {
     constructor(options = {}) {
@@ -25,30 +51,38 @@ export class GazeEstimator {
      * Initialize MediaPipe FaceMesh
      */
     async initialize() {
-        return new Promise((resolve) => {
-            this.faceMesh = new FaceMesh({
-                locateFile: (file) => {
-                    return `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${file}`;
-                }
-            });
+        // Load MediaPipe from CDN
+        const FaceMesh = await loadMediaPipe();
 
-            this.faceMesh.setOptions({
-                maxNumFaces: 1,
-                refineLandmarks: true,
-                minDetectionConfidence: 0.5,
-                minTrackingConfidence: 0.5,
-            });
+        return new Promise((resolve, reject) => {
+            try {
+                this.faceMesh = new FaceMesh({
+                    locateFile: (file) => {
+                        return `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${file}`;
+                    }
+                });
 
-            this.faceMesh.onResults((results) => {
-                this.lastResults = results;
-            });
+                this.faceMesh.setOptions({
+                    maxNumFaces: 1,
+                    refineLandmarks: true,
+                    minDetectionConfidence: 0.5,
+                    minTrackingConfidence: 0.5,
+                });
 
-            this.faceMesh.initialize().then(() => {
-                this.isReady = true;
-                resolve();
-            });
+                this.faceMesh.onResults((results) => {
+                    this.lastResults = results;
+                });
+
+                this.faceMesh.initialize().then(() => {
+                    this.isReady = true;
+                    resolve();
+                }).catch(reject);
+            } catch (error) {
+                reject(error);
+            }
         });
     }
+
 
     /**
      * Process a video frame
