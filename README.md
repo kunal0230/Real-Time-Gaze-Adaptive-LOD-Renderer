@@ -243,6 +243,3 @@ MIT License — see [LICENSE](LICENSE) for details.
 
 ---
 
-<p align="center">
-  <strong>Built with ❤️ for the intersection of Computer Vision and Real-time Graphics</strong>
-</p>
