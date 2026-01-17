@@ -1,7 +1,7 @@
- * ComputeTracker - Tracks rendering compute costs
-    * Compares full - render baseline vs selective foveated rendering
-        */
-
+/**
+ * Tracks rendering compute costs.
+ * Compares full-render baseline vs selective foveated rendering.
+ */
 export class ComputeTracker {
     constructor() {
         // Constants for baseline calculation
@@ -131,4 +131,3 @@ export class ComputeTracker {
         };
     }
 }
-```
