@@ -49,6 +49,10 @@ body {
   overflow: auto;
 }
 
+.hidden {
+  display: none !important;
+}
+
 /* HOME SCREEN */
 
 .home-screen {

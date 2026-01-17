@@ -10,9 +10,6 @@ export class ComputeTracker {
         this.DEMO_DURATION_SEC = 45;
         this.TARGET_FPS = 60;
 
-        // Full render uses uniform high detail (80 steps)
-        this.FULL_RENDER_STEPS = 80;
-
         // Cumulative data
         this.frameStepCounts = [];
         this.isTracking = false;
@@ -20,8 +17,10 @@ export class ComputeTracker {
 
     /**
      * Start tracking compute cost for the session
+     * @param {number} width - Screen width (optional)
+     * @param {number} height - Screen height (optional)
      */
-    startTracking() {
+    startSession(width, height) {
         this.frameStepCounts = [];
         this.isTracking = true;
     }
@@ -38,7 +37,7 @@ export class ComputeTracker {
     /**
      * Stop tracking compute cost
      */
-    stopTracking() {
+    endSession() {
         this.isTracking = false;
     }
 
@@ -48,13 +47,13 @@ export class ComputeTracker {
      */
     getFullRenderCost() {
         const totalFrames = this.DEMO_DURATION_SEC * this.TARGET_FPS;
-        const stepsPerFrame = this.FULL_RENDER_STEPS; // Uniform high quality
-        const totalSteps = totalFrames * stepsPerFrame;
+        const stepsPerFrame = this.FULL_RENDER_STEPS;
+        const computeUnits = totalFrames * stepsPerFrame;
 
         return {
             totalFrames,
             avgStepsPerFrame: stepsPerFrame,
-            totalSteps,
+            computeUnits,
             label: 'Full Render'
         };
     }
@@ -68,7 +67,7 @@ export class ComputeTracker {
             return {
                 totalFrames: 0,
                 avgStepsPerFrame: 0,
-                totalSteps: 0,
+                computeUnits: 0,
                 label: 'Selective Render'
             };
         }
@@ -79,25 +78,32 @@ export class ComputeTracker {
 
         return {
             totalFrames,
-            avgStepsPerFrame,
-            totalSteps,
+            avgStepsPerFrame: Math.round(avgStepsPerFrame),
+            computeUnits: Math.round(totalSteps),
             label: 'Selective Render'
         };
     }
 
     /**
-     * Calculate savings percentage
-     * @returns {number} Percentage (0-100)
+     * Get session summary for the results screen
      */
-    calculateSavings() {
-        const baseline = this.getFullRenderCost().totalSteps;
-        const selective = this.getSelectiveRenderCost().totalSteps;
+    getSummary() {
+        const fullRender = this.getFullRenderCost();
+        const selectiveRender = this.getSelectiveRenderCost();
 
-        if (baseline === 0) return 0;
+        // Calculate savings percentage
+        let savingsPercent = 0;
+        if (fullRender.computeUnits > 0) {
+            savingsPercent = ((fullRender.computeUnits - selectiveRender.computeUnits) / fullRender.computeUnits) * 100;
+        }
 
-        // Savings = (Baseline - Selective) / Baseline
-        const rawSavings = (baseline - selective) / baseline;
-        return Math.max(0, rawSavings * 100);
+        return {
+            fullRender,
+            selectiveRender,
+            savingsPercent: Math.round(savingsPercent),
+            sessionDurationSec: this.DEMO_DURATION_SEC,
+            framesCaptured: selectiveRender.totalFrames
+        };
     }
 
     /**
@@ -106,28 +112,5 @@ export class ComputeTracker {
      */
     formatSteps(num) {
         return new Intl.NumberFormat().format(Math.round(num));
-    }
-
-    /**
-     * Get session summary for export
-     */
-    getSessionSummary() {
-        const baseline = this.getFullRenderCost();
-        const selective = this.getSelectiveRenderCost();
-        const savings = this.calculateSavings();
-
-        return {
-            timestamp: new Date().toISOString(),
-            duration: this.DEMO_DURATION_SEC,
-            baseline: {
-                totalSteps: baseline.totalSteps,
-                avgSteps: baseline.avgStepsPerFrame
-            },
-            adaptive: {
-                totalSteps: selective.totalSteps,
-                avgSteps: selective.avgStepsPerFrame
-            },
-            savingsPercentage: savings.toFixed(1) + '%'
-        };
     }
 }
