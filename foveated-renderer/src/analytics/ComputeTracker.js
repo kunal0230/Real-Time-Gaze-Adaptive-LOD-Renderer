@@ -1,7 +1,6 @@
-/**
- * ComputeTracker - Analytics module for tracking rendering compute costs
- * Compares full-render baseline vs selective foveated rendering
- */
+ * ComputeTracker - Tracks rendering compute costs
+    * Compares full - render baseline vs selective foveated rendering
+        */
 
 export class ComputeTracker {
     constructor() {
@@ -11,30 +10,25 @@ export class ComputeTracker {
         this.DEMO_DURATION_SEC = 45;
         this.TARGET_FPS = 60;
 
-        // Session tracking
-        this.frameStepCounts = [];          // Array of average steps per frame
-        this.sessionStartTime = null;
-        this.sessionEndTime = null;
-        this.isTracking = false;
+        // Full render uses uniform high detail (80 steps)
+        this.FULL_RENDER_STEPS = 80;
 
-        // Estimated pixels (will be set based on resolution)
-        this.pixelCount = 1920 * 1080;      // Default, updated at runtime
+        // Cumulative data
+        this.frameStepCounts = [];
+        this.isTracking = false;
     }
 
     /**
-     * Start a new tracking session
+     * Start tracking compute cost for the session
      */
-    startSession(width = 1920, height = 1080) {
+    startTracking() {
         this.frameStepCounts = [];
-        this.pixelCount = width * height;
-        this.sessionStartTime = Date.now();
-        this.sessionEndTime = null;
         this.isTracking = true;
     }
 
     /**
-     * Record compute cost for a single frame
-     * @param {number} avgSteps - Average step count per pixel for this frame
+     * Record the Average Steps taken for a frame
+     * @param {number} avgSteps Average raymarching steps for this frame
      */
     recordFrame(avgSteps) {
         if (!this.isTracking) return;
@@ -42,16 +36,14 @@ export class ComputeTracker {
     }
 
     /**
-     * End the current tracking session
+     * Stop tracking compute cost
      */
-    endSession() {
-        this.sessionEndTime = Date.now();
+    stopTracking() {
         this.isTracking = false;
     }
 
     /**
-     * Get the static full-render baseline cost
-     * This is constant since we know the scene and duration
+     * Get the full-render baseline cost
      * @returns {object} Cost metrics
      */
     getFullRenderCost() {
@@ -61,16 +53,14 @@ export class ComputeTracker {
 
         return {
             totalFrames,
-            avgStepsPerFrame: this.FULL_RENDER_STEPS,
+            avgStepsPerFrame: stepsPerFrame,
             totalSteps,
-            // Normalized "compute units" for comparison
-            computeUnits: totalSteps
+            label: 'Full Render'
         };
     }
 
     /**
-     * Get the dynamic selective-render cost for this session
-     * This varies based on where the user looked
+     * Get the selective-render cost for this session
      * @returns {object} Cost metrics
      */
     getSelectiveRenderCost() {
@@ -79,62 +69,66 @@ export class ComputeTracker {
                 totalFrames: 0,
                 avgStepsPerFrame: 0,
                 totalSteps: 0,
-                computeUnits: 0
+                label: 'Selective Render'
             };
         }
 
         const totalFrames = this.frameStepCounts.length;
-        const totalSteps = this.frameStepCounts.reduce((sum, steps) => sum + steps, 0);
+        const totalSteps = this.frameStepCounts.reduce((a, b) => a + b, 0);
         const avgStepsPerFrame = totalSteps / totalFrames;
 
         return {
             totalFrames,
-            avgStepsPerFrame: Math.round(avgStepsPerFrame * 10) / 10,
-            totalSteps: Math.round(totalSteps),
-            computeUnits: Math.round(totalSteps)
+            avgStepsPerFrame,
+            totalSteps,
+            label: 'Selective Render'
         };
     }
 
     /**
-     * Get savings percentage
-     * @returns {number} Percentage saved (0-100)
+     * Calculate savings percentage
+     * @returns {number} Percentage (0-100)
      */
-    getSavingsPercent() {
-        const full = this.getFullRenderCost();
-        const selective = this.getSelectiveRenderCost();
+    calculateSavings() {
+        const baseline = this.getFullRenderCost().totalSteps;
+        const selective = this.getSelectiveRenderCost().totalSteps;
 
-        if (full.computeUnits === 0) return 0;
+        if (baseline === 0) return 0;
 
-        // Normalize to same frame count for fair comparison
-        const normalizedSelective = (selective.avgStepsPerFrame / this.FULL_RENDER_STEPS) * 100;
-        const savings = 100 - normalizedSelective;
-
-        return Math.round(savings * 10) / 10; // One decimal place
+        // Savings = (Baseline - Selective) / Baseline
+        const rawSavings = (baseline - selective) / baseline;
+        return Math.max(0, rawSavings * 100);
     }
 
     /**
-     * Get session duration in seconds
+     * Format a large number for display
+     * @param {number} num 
      */
-    getSessionDuration() {
-        if (!this.sessionStartTime) return 0;
-        const endTime = this.sessionEndTime || Date.now();
-        return (endTime - this.sessionStartTime) / 1000;
+    formatSteps(num) {
+        return new Intl.NumberFormat().format(Math.round(num));
     }
 
     /**
-     * Get detailed analytics summary
+     * Get session summary for export
      */
-    getSummary() {
-        const full = this.getFullRenderCost();
+    getSessionSummary() {
+        const baseline = this.getFullRenderCost();
         const selective = this.getSelectiveRenderCost();
-        const savings = this.getSavingsPercent();
+        const savings = this.calculateSavings();
 
         return {
-            fullRender: full,
-            selectiveRender: selective,
-            savingsPercent: savings,
-            sessionDurationSec: Math.round(this.getSessionDuration() * 10) / 10,
-            framesCaptured: this.frameStepCounts.length
+            timestamp: new Date().toISOString(),
+            duration: this.DEMO_DURATION_SEC,
+            baseline: {
+                totalSteps: baseline.totalSteps,
+                avgSteps: baseline.avgStepsPerFrame
+            },
+            adaptive: {
+                totalSteps: selective.totalSteps,
+                avgSteps: selective.avgStepsPerFrame
+            },
+            savingsPercentage: savings.toFixed(1) + '%'
         };
     }
 }
+```

@@ -1,6 +1,6 @@
 /**
- * Foveated Renderer - Main Application
- * Multi-screen architecture with Home → Calibration → Demo → Results flow
+ * Main Application orchestrator.
+ * Manages screen transitions: Home -> Calibration -> Demo -> Results.
  */
 
 // Vercel Analytics
@@ -85,7 +85,7 @@ class App {
         // Show home screen initially
         this._showScreen(SCREENS.HOME);
 
-        // Initialize camera immediately for face preview
+        // Start at home screen
         await this._initCamera();
     }
 
@@ -320,7 +320,7 @@ class App {
                 this.homeScreen.show();
                 break;
             case SCREENS.CALIBRATION:
-                // Calibration uses overlay
+                // Initialize screens
                 break;
             case SCREENS.DEMO:
                 this.demoScreen.show();

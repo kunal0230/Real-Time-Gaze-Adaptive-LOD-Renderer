@@ -1,6 +1,6 @@
 /**
- * Advanced Raymarching Renderer using Signed Distance Fields (SDFs)
- * Implements "TRUE" Foveated Rendering by optimizing the raymarching loop
+ * Raymarching Renderer using Signed Distance Fields (SDFs)
+ * Implements foveated rendering by optimizing the raymarching loop
  * based on the user's gaze direction.
  */
 
@@ -82,10 +82,9 @@ export class RaymarchingRenderer {
             
             out vec4 outColor;
 
-            // ═══════════════════════════════════════════════════════════════════
-            // 🌲 FOREST LANDSCAPE - LOD Demo with Trees, Rocks & Water
+            // --- FOREST LANDSCAPE - LOD Demo with Trees, Rocks & Water ---
             // Game-style Level of Detail based on Eye Gaze
-            // ═══════════════════════════════════════════════════════════════════
+            // -----------------------------------------------------------
             
             // --- NOISE FUNCTIONS ---
             float hash(float n) { return fract(sin(n) * 43758.5453); }
@@ -120,9 +119,7 @@ export class RaymarchingRenderer {
                 return f;
             }
 
-            // ═══════════════════════════════════════════════════════════════════
-            // 🌲 SDF PRIMITIVES FOR TREES & ROCKS
-            // ═══════════════════════════════════════════════════════════════════
+            // --- SDF PRIMITIVES FOR TREES & ROCKS ---
             
             float sdSphere(vec3 p, float r) {
                 return length(p) - r;
@@ -151,11 +148,10 @@ export class RaymarchingRenderer {
                 return mix(b, a, h) - k*h*(1.0-h);
             }
 
-            // ═══════════════════════════════════════════════════════════════════
-            // 🎯 LOD TREE - Detail varies with gaze distance!
+            // --- LOD TREE - Detail varies with gaze distance ---
             // High LOD: Multiple branches, detailed leaves
             // Low LOD: Simple cone silhouette
-            // ═══════════════════════════════════════════════════════════════════
+            // ----------------------------------------------------
             
             float sdTreeHighDetail(vec3 p, float seed) {
                 // Trunk
@@ -197,9 +193,7 @@ export class RaymarchingRenderer {
                 return min(trunk, foliage);
             }
             
-            // ═══════════════════════════════════════════════════════════════════
-            // 🪨 LOD ROCK - Detail varies with gaze distance!
-            // ═══════════════════════════════════════════════════════════════════
+            // --- LOD ROCK - Detail varies with gaze distance ---
             
             float sdRockHighDetail(vec3 p, float seed) {
                 // Deformed sphere with noise displacement
@@ -222,9 +216,7 @@ export class RaymarchingRenderer {
                 return (length(q) - 1.0) * 0.4;
             }
 
-            // ═══════════════════════════════════════════════════════════════════
-            // 🏔️ TERRAIN with LOD
-            // ═══════════════════════════════════════════════════════════════════
+            // --- TERRAIN with LOD ---
             
             float sdTerrain(vec3 p, int terrainLOD) {
                 float h = fbmLOD(p.xz * 0.1, terrainLOD) * 3.0;
@@ -244,9 +236,7 @@ export class RaymarchingRenderer {
                 return p.y - h;
             }
 
-            // ═══════════════════════════════════════════════════════════════════
-            // 🎬 SCENE MAP - Combines terrain, trees, rocks with LOD
-            // ═══════════════════════════════════════════════════════════════════
+            // --- SCENE MAP - Combines terrain, trees, rocks with LOD ---
             
             // Outputs: distance, material ID (0=terrain, 1=tree trunk, 2=tree foliage, 3=rock)
             vec2 mapScene(vec3 p, float lod) {
@@ -359,9 +349,7 @@ export class RaymarchingRenderer {
                 ));
             }
 
-            // ═══════════════════════════════════════════════════════════════════
-            // 🌅 SKY
-            // ═══════════════════════════════════════════════════════════════════
+            // --- SKY ---
             
             vec3 getSky(vec3 rd, vec3 sunDir) {
                 float sunAmount = max(dot(rd, sunDir), 0.0);
@@ -381,9 +369,7 @@ export class RaymarchingRenderer {
                 return sky;
             }
 
-            // ═══════════════════════════════════════════════════════════════════
-            // 🎬 MAIN RENDER
-            // ═══════════════════════════════════════════════════════════════════
+            // --- MAIN RENDER ---
             
             void main() {
                 vec2 uv = gl_FragCoord.xy / u_resolution.xy;
@@ -392,11 +378,10 @@ export class RaymarchingRenderer {
                 float distToGaze = length(uv - u_gaze);
                 float radius = u_foveaRadius;
                 
-                // ═══════════════════════════════════════════════════
-                // 🎯 FOVEATED LOD - The Key Innovation!
+                // --- FOVEATED LOD ---
                 // Center: High detail (LOD = 0)
                 // Periphery: Low detail (LOD = 1)
-                // ═══════════════════════════════════════════════════
+                // ---------------------
                 float foveaFactor = smoothstep(radius * 0.3, radius * 2.5, distToGaze);
                 float lod = foveaFactor; // 0.0 = max detail, 1.0 = min detail
                 
@@ -408,9 +393,7 @@ export class RaymarchingRenderer {
                 float MAX_DIST = 150.0;
                 const int MAX_STEPS_HARD = 100;
 
-                // ═══════════════════════════════════════════════════
-                // 🎥 CAMERA
-                // ═══════════════════════════════════════════════════
+                // --- CAMERA ---
                 float camTime = u_time * 0.4;
                 
                 vec3 ro = vec3(
@@ -427,9 +410,7 @@ export class RaymarchingRenderer {
                 
                 vec3 sunDir = normalize(vec3(0.5, 0.4, -0.7));
 
-                // ═══════════════════════════════════════════════════
-                // 🔍 RAYMARCHING with LOD
-                // ═══════════════════════════════════════════════════
+                // --- RAYMARCHING with LOD ---
                 float dither = random(uv + u_time * 0.01) * 0.05;
                 float t = 0.2 + dither;
                 vec2 hit = vec2(MAX_DIST, -1.0);
@@ -460,9 +441,7 @@ export class RaymarchingRenderer {
                     }
                 }
 
-                // ═══════════════════════════════════════════════════
-                // 🎨 SHADING
-                // ═══════════════════════════════════════════════════
+                // --- SHADING ---
                 
                 vec3 col = getSky(rd, sunDir);
                 
@@ -481,7 +460,7 @@ export class RaymarchingRenderer {
                 vec3 pos = ro + rd * hit.x;
                 
                 if(hitWater) {
-                    // 💧 WATER with reflections
+                    // Water with reflections
                     vec3 nor = vec3(0.0, 1.0, 0.0);
                     float wave = noise(pos.xz * 1.5 + u_time * 0.6) * 0.05;
                     nor = normalize(vec3(wave, 1.0, wave));
@@ -508,7 +487,7 @@ export class RaymarchingRenderer {
                     vec3 mate;
                     
                     if(hit.y < 0.5) {
-                        // 🌿 TERRAIN - Grass
+                        // TERRAIN - Grass
                         vec3 grass1 = vec3(0.2, 0.45, 0.08);
                         vec3 grass2 = vec3(0.4, 0.6, 0.15);
                         float n = noise(pos.xz * 5.0);
@@ -520,12 +499,12 @@ export class RaymarchingRenderer {
                         mate = mix(mate, dirt, smoothstep(0.5, 0.8, slope));
                     }
                     else if(hit.y < 1.5) {
-                        // 🪵 TREE TRUNK - Brown bark
+                        // TREE TRUNK - Bark
                         mate = vec3(0.3, 0.2, 0.1);
                         mate += noise(pos.xy * 10.0) * vec3(0.05, 0.03, 0.02);
                     }
                     else if(hit.y < 2.5) {
-                        // 🌲 TREE FOLIAGE - Green leaves
+                        // TREE FOLIAGE - Leaves
                         vec3 leaf1 = vec3(0.1, 0.35, 0.05);
                         vec3 leaf2 = vec3(0.2, 0.5, 0.1);
                         float n = noise(pos.xz * 8.0 + pos.y * 2.0);
@@ -536,7 +515,7 @@ export class RaymarchingRenderer {
                         mate += vec3(0.2, 0.4, 0.1) * sss * 0.3;
                     }
                     else {
-                        // 🪨 ROCK - Grey stone
+                        // ROCK - Stone
                         mate = vec3(0.4, 0.38, 0.35);
                         mate += noise(pos.xz * 15.0) * vec3(0.08, 0.06, 0.05);
                     }
@@ -553,9 +532,7 @@ export class RaymarchingRenderer {
                     col = mix(col, vec3(0.8, 0.8, 0.85), fog);
                 }
                 
-                // ═══════════════════════════════════════════════════
-                // 📊 HEATMAP - Shows computational cost
-                // ═══════════════════════════════════════════════════
+                // --- HEATMAP - Shows computational cost ---
                 if(u_showHeatmap) {
                     // Show LOD level as color (Blue=High detail, Red=Low detail)
                     float lodVis = lod;
@@ -567,9 +544,7 @@ export class RaymarchingRenderer {
                     col = mix(col, vec3(stepVis), 0.2);
                 }
                 
-                // ═══════════════════════════════════════════════════
-                // ✨ POST-PROCESS
-                // ═══════════════════════════════════════════════════
+                // --- POST-PROCESS ---
                 
                 // Subtle peripheral vignette (darker = less compute = more obvious)
                 col *= mix(1.0, 0.85, foveaFactor * 0.5);

@@ -1,6 +1,5 @@
 /**
- * GazeEstimator - Browser-based eye tracking using MediaPipe
- * Ported from EyeTrax gaze.py
+ * GazeEstimator - Eye tracking using MediaPipe.
  */
 
 import { LEFT_EYE_INDICES, RIGHT_EYE_INDICES, MUTUAL_INDICES } from './constants.js';
@@ -48,7 +47,7 @@ export class GazeEstimator {
     }
 
     /**
-     * Initialize MediaPipe FaceMesh
+     * Load MediaPipe FaceMesh.
      */
     async initialize() {
         // Load MediaPipe from CDN

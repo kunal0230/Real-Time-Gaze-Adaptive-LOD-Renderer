@@ -1,5 +1,5 @@
 <h1 align="center">
-  👁️ Real-Time Gaze-Adaptive LOD Renderer
+  Real-Time Gaze-Adaptive LOD Renderer
 </h1>
 
 <p align="center">
@@ -19,13 +19,13 @@
 
 ---
 
-## 🎯 What Is This?
+## What Is This?
 
 This project demonstrates **foveated rendering** — a technique used in VR/AR headsets and modern game engines to optimize GPU performance by rendering high detail only where the user is looking, while reducing detail in peripheral vision.
 
-> **Human vision has a small high-acuity region (fovea) surrounded by lower-resolution peripheral vision. This system exploits that by tracking your gaze and dynamically adjusting rendering quality — saving up to 50% compute resources while maintaining perceived visual quality.**
+Human vision has a small high-acuity region (fovea) surrounded by lower-resolution peripheral vision. This system exploits that by tracking your gaze and dynamically adjusting rendering quality — saving up to 50% compute resources while maintaining perceived visual quality.
 
-### 🔬 Research Relevance
+### Research Relevance
 
 Foveated rendering is an active research area with applications in:
 
@@ -36,20 +36,20 @@ Foveated rendering is an active research area with applications in:
 
 ---
 
-## ✨ Key Features
+## Key Features
 
 | Feature | Description |
 |---------|-------------|
-| 👁️ **Real-time Eye Tracking** | Webcam-based gaze estimation using MediaPipe Face Mesh (468 facial landmarks) |
-| 🎮 **Game-Style LOD System** | Trees, rocks, and terrain with dynamically varying geometric complexity |
-| ⚡ **45% GPU Savings** | Demonstrated reduction in compute cost while maintaining visual quality |
-| 📊 **Live Analytics** | Real-time comparison of full render vs. selective render costs |
-| 🎯 **40-Point Calibration** | Precise eye-to-screen coordinate mapping with face guidance |
-| 🔧 **Debug Mode** | Visualize all 468 face landmarks, gaze coordinates, and LOD metrics |
+| **Real-time Eye Tracking** | Webcam-based gaze estimation using MediaPipe Face Mesh (468 facial landmarks) |
+| **Game-Style LOD System** | Trees, rocks, and terrain with dynamically varying geometric complexity |
+| **45% GPU Savings** | Demonstrated reduction in compute cost while maintaining visual quality |
+| **Live Analytics** | Real-time comparison of full render vs. selective render costs |
+| **40-Point Calibration** | Precise eye-to-screen coordinate mapping with face guidance |
+| **Debug Mode** | Visualize all 468 face landmarks, gaze coordinates, and LOD metrics |
 
 ---
 
-## 📸 Screenshots
+## Screenshots
 
 ### Home Screen — Face Detection & Guidance
 
@@ -75,42 +75,42 @@ After each demo session, the system displays real performance metrics showing ac
 
 ---
 
-## 🏗️ Technical Architecture
+## Technical Architecture
 
 ```
-┌─────────────────────────────────────────────────────────────────┐
-│                        FOVEATED RENDERER                        │
-├─────────────────────────────────────────────────────────────────┤
-│                                                                 │
-│   ┌──────────────┐    ┌──────────────┐    ┌──────────────┐     │
-│   │   Webcam     │───▶│  MediaPipe   │───▶│    Ridge     │     │
-│   │   Input      │    │  Face Mesh   │    │  Regression  │     │
-│   └──────────────┘    └──────────────┘    └──────────────┘     │
-│                              │                    │             │
-│                              ▼                    ▼             │
-│                       468 Landmarks        Gaze (x, y)         │
-│                              │                    │             │
-│                              └────────┬───────────┘             │
-│                                       ▼                         │
-│                            ┌──────────────────┐                 │
-│                            │   Kalman Filter  │                 │
-│                            │   (Smoothing)    │                 │
-│                            └────────┬─────────┘                 │
-│                                     ▼                           │
-│   ┌─────────────────────────────────────────────────────────┐   │
-│   │                  WebGL2 Raymarching                     │   │
-│   │  ┌─────────────────────────────────────────────────┐   │   │
-│   │  │              LOD Selection Logic                 │   │   │
-│   │  │                                                  │   │   │
-│   │  │   Fovea (center):     Periphery:                │   │   │
-│   │  │   • 80 march steps    • 35 march steps          │   │   │
-│   │  │   • Full tree detail  • Simple cone shapes      │   │   │
-│   │  │   • 6 FBM octaves     • 2 FBM octaves           │   │   │
-│   │  │   • Fine epsilon      • Coarse epsilon          │   │   │
-│   │  └─────────────────────────────────────────────────┘   │   │
-│   └─────────────────────────────────────────────────────────┘   │
-│                                                                 │
-└─────────────────────────────────────────────────────────────────┘
++-----------------------------------------------------------------+
+|                        FOVEATED RENDERER                        |
++-----------------------------------------------------------------+
+|                                                                 |
+|   +--------------+    +--------------+    +--------------+     |
+|   |   Webcam     |--->|  MediaPipe   |--->|    Ridge     |     |
+|   |   Input      |    |  Face Mesh   |    |  Regression  |     |
+|   +--------------+    +--------------+    +--------------+     |
+|                              |                    |             |
+|                              v                    v             |
+|                       468 Landmarks        Gaze (x, y)         |
+|                              |                    |             |
+|                              +--------+-----------+             |
+|                                       v                         |
+|                            +------------------+                 |
+|                            |   Kalman Filter  |                 |
+|                            |   (Smoothing)    |                 |
+|                            +--------+---------+                 |
+|                                     v                           |
+|   +---------------------------------------------------------+   |
+|   |                  WebGL2 Raymarching                     |   |
+|   |  +-------------------------------------------------+   |   |
+|   |  |              LOD Selection Logic                 |   |   |
+|   |  |                                                  |   |   |
+|   |  |   Fovea (center):     Periphery:                |   |   |
+|   |  |   • 80 march steps    • 35 march steps          |   |   |
+|   |  |   • Full tree detail  • Simple cone shapes      |   |   |
+|   |  |   • 6 FBM octaves     • 2 FBM octaves           |   |   |
+|   |  |   • Fine epsilon      • Coarse epsilon          |   |   |
+|   |  +-------------------------------------------------+   |   |
+|   +---------------------------------------------------------+   |
+|                                                                 |
++-----------------------------------------------------------------+
 ```
 
 ### LOD (Level of Detail) Implementation
@@ -124,7 +124,7 @@ After each demo session, the system displays real performance metrics showing ac
 
 ---
 
-## 🚀 Quick Start
+## Quick Start
 
 ### Prerequisites
 
@@ -150,7 +150,7 @@ npm run dev
 
 1. **Open** `http://localhost:5173` in your browser
 2. **Allow** camera access when prompted
-3. **Position** your face within the green guide oval
+3. **Position** your face within the guide oval
 4. **Click** "Start Calibration" when the button turns green
 5. **Complete** the 40-point calibration by looking at each dot
 6. **Explore** the 3D forest scene for 45 seconds
@@ -158,7 +158,7 @@ npm run dev
 
 ---
 
-## 📁 Project Structure
+## Project Structure
 
 ```
 foveated-renderer/
@@ -188,7 +188,7 @@ foveated-renderer/
 
 ---
 
-## 🔢 Performance Metrics
+## Performance Metrics
 
 Based on actual demo sessions:
 
@@ -204,7 +204,7 @@ Based on actual demo sessions:
 
 ---
 
-## 🛠️ Technologies Used
+## Technologies Used
 
 | Technology | Purpose |
 |------------|---------|
@@ -217,18 +217,18 @@ Based on actual demo sessions:
 
 ---
 
-## 🔮 Future Enhancements
+## Future Enhancements
 
-- [ ] Variable Resolution Rendering (VRR) integration
-- [ ] Multi-user calibration profiles
-- [ ] Mobile device support (iOS/Android)
-- [ ] WebXR support for VR headsets
-- [x] Export analytics as shareable report
-- [ ] Side-by-side comparison mode
+- Variable Resolution Rendering (VRR) integration
+- Multi-user calibration profiles
+- Mobile device support (iOS/Android)
+- WebXR support for VR headsets
+- Export analytics as shareable report
+- Side-by-side comparison mode
 
 ---
 
-## 📚 References & Inspiration
+## References
 
 - [Foveated Rendering - NVIDIA Research](https://research.nvidia.com/publication/2016-11_foveated-rendering)
 - [MediaPipe Face Mesh - Google](https://google.github.io/mediapipe/solutions/face_mesh.html)
@@ -237,12 +237,12 @@ Based on actual demo sessions:
 
 ---
 
-## 📄 License
+## License
 
 MIT License — see [LICENSE](LICENSE) for details.
 
 ---
 
 <p align="center">
-  <strong>Built with ❤️ for the intersection of Computer Vision and Real-time Graphics</strong>
+  <strong>Built for the intersection of Computer Vision and Real-time Graphics</strong>
 </p>

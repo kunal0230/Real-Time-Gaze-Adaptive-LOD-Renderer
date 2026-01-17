@@ -15,7 +15,7 @@ export class HomeScreen {
         this.container.innerHTML = `
             <div class="home-screen">
                 <header class="home-header">
-                    <h1>🎯 Gaze-Controlled Foveated Rendering</h1>
+                    <h1>Gaze-Controlled Foveated Rendering</h1>
                     <p class="subtitle">Experience game-style Level of Detail based on where you look</p>
                 </header>
                 
@@ -24,19 +24,19 @@ export class HomeScreen {
                         <div class="camera-preview" id="camera-preview">
                             <video id="home-video" autoplay playsinline muted></video>
                             <div class="camera-placeholder">
-                                <div class="camera-icon">📷</div>
+                                <div class="camera-icon">Camera</div>
                                 <p>Camera initializing...</p>
                             </div>
                         </div>
                         <button class="start-button" id="start-btn" disabled>
-                            <span class="btn-icon">🎯</span>
+                            <span class="btn-icon"></span>
                             Start Calibration
                         </button>
                     </div>
                     
                     <div class="instructions-section">
                         <div class="instruction-card">
-                            <h3>🔬 How It Works</h3>
+                            <h3>How It Works</h3>
                             <p>This demo uses your webcam to track where you're looking. The 3D scene 
                             renders <strong>high detail where you look</strong> and 
                             <strong>lower detail in your peripheral vision</strong> — just like how 
@@ -47,7 +47,7 @@ export class HomeScreen {
                         
                         <div class="instruction-card dos-donts">
                             <div class="do-col">
-                                <h4>✅ Do's</h4>
+                                <h4>Do's</h4>
                                 <ul>
                                     <li>Use good, even lighting</li>
                                     <li>Face the camera directly</li>
@@ -57,7 +57,7 @@ export class HomeScreen {
                                 </ul>
                             </div>
                             <div class="dont-col">
-                                <h4>❌ Don'ts</h4>
+                                <h4>Don'ts</h4>
                                 <ul>
                                     <li>Strong backlighting</li>
                                     <li>Multiple faces in frame</li>
@@ -69,7 +69,7 @@ export class HomeScreen {
                         </div>
                         
                         <div class="instruction-card demo-info">
-                            <h4>⏱️ Demo Duration</h4>
+                            <h4>Demo Duration</h4>
                             <p>The interactive demo runs for <strong>45 seconds</strong>. 
                             Look around the scene to explore the forest landscape. 
                             After the demo, you'll see analytics comparing compute costs.</p>

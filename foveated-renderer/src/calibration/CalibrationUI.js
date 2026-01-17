@@ -1,6 +1,5 @@
 /**
- * 9-Point Calibration UI
- * Matches Python EyeTrax implementation:
+ * Manages the gaze calibration process.
  * - Pulse phase: 1 second animation to attract attention
  * - Capture phase: 1 second of continuous sample collection
  * - No averaging - train on ALL samples

@@ -1,5 +1,5 @@
 /**
- * Simple 1D Kalman Filter for gaze smoothing
+ * 1D Kalman Filter for gaze smoothing.
  */
 export class KalmanFilter {
     constructor(options = {}) {
