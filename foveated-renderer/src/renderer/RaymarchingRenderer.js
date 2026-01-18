@@ -7,27 +7,32 @@
 export class RaymarchingRenderer {
     constructor(canvas) {
         this.canvas = canvas;
-        this.gl = canvas.getContext('webgl2'); // Need WebGL2 for performance
+        this.gl = canvas.getContext('webgl2');
         if (!this.gl) {
             console.error('WebGL2 not supported');
             return;
         }
 
         this.program = null;
-        this.gazeX = 0.5; // Normalized 0-1
-        this.gazeY = 0.5; // Normalized 0-1
+        this.gazeX = 0.5;
+        this.gazeY = 0.5;
         this.time = 0;
 
+        // Resolution scale (0.5 = half resolution for performance)
+        this.resolutionScale = 0.5;
+
         // Foveated parameters
-        this.foveaRadius = 0.15; // Size of high-detail zone
+        this.foveaRadius = 0.15;
 
         this._initShaders();
         this._initBuffers();
     }
 
     resize() {
-        this.canvas.width = window.innerWidth;
-        this.canvas.height = window.innerHeight;
+        // Use scaled resolution for performance (CSS will upscale)
+        const scale = this.resolutionScale;
+        this.canvas.width = Math.floor(window.innerWidth * scale);
+        this.canvas.height = Math.floor(window.innerHeight * scale);
         this.gl.viewport(0, 0, this.canvas.width, this.canvas.height);
     }
 

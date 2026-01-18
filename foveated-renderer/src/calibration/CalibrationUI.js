@@ -145,6 +145,11 @@ export class CalibrationUI {
 
         console.log(`Total samples collected: ${this.features.length}`);
 
+        // Calculate calibration quality (based on samples per point and coverage)
+        const samplesPerPoint = this.features.length / points.length;
+        const idealSamplesPerPoint = 30; // ~30fps × 1sec capture
+        const quality = Math.min(100, Math.round((samplesPerPoint / idealSamplesPerPoint) * 100));
+
         // Train model if we have enough data
         if (this.features.length >= 20) {
             this.status.textContent = 'Training model...';
@@ -153,20 +158,20 @@ export class CalibrationUI {
                 this.gazeEstimator.train(this.features, this.targets);
 
                 if (this.onComplete) {
-                    this.onComplete(true);
+                    this.onComplete(true, quality);
                 }
                 return true;
             } catch (error) {
                 console.error('Training failed:', error);
                 if (this.onComplete) {
-                    this.onComplete(false);
+                    this.onComplete(false, 0);
                 }
                 return false;
             }
         } else {
             console.error(`Not enough samples: ${this.features.length}`);
             if (this.onComplete) {
-                this.onComplete(false);
+                this.onComplete(false, 0);
             }
             return false;
         }

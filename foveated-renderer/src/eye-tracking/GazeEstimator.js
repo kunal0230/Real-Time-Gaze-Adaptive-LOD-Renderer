@@ -1,14 +1,18 @@
 /**
- * GazeEstimator - Eye tracking using MediaPipe.
+ * GazeEstimator - Eye tracking using MediaPipe with all 478 landmarks.
  */
 
-import { LEFT_EYE_INDICES, RIGHT_EYE_INDICES, MUTUAL_INDICES } from './constants.js';
+import {
+    ALL_LANDMARK_COUNT,
+    LEFT_EYE_CORNERS,
+    RIGHT_EYE_CORNERS,
+    POSE_LANDMARKS
+} from './constants.js';
 import { RidgeRegression } from './RidgeRegression.js';
 
 // Load MediaPipe from CDN dynamically
 async function loadMediaPipe() {
     return new Promise((resolve, reject) => {
-        // Check if already loaded
         if (window.FaceMesh) {
             resolve(window.FaceMesh);
             return;
@@ -18,7 +22,6 @@ async function loadMediaPipe() {
         script.src = 'https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/face_mesh.js';
         script.crossOrigin = 'anonymous';
         script.onload = () => {
-            // Wait a bit for the module to initialize
             setTimeout(() => {
                 if (window.FaceMesh) {
                     resolve(window.FaceMesh);
@@ -46,11 +49,7 @@ export class GazeEstimator {
         this.minHistory = options.minHistory || 15;
     }
 
-    /**
-     * Load MediaPipe FaceMesh.
-     */
     async initialize() {
-        // Load MediaPipe from CDN
         const FaceMesh = await loadMediaPipe();
 
         return new Promise((resolve, reject) => {
@@ -63,7 +62,7 @@ export class GazeEstimator {
 
                 this.faceMesh.setOptions({
                     maxNumFaces: 1,
-                    refineLandmarks: true,
+                    refineLandmarks: true, // Required for iris landmarks (468-477)
                     minDetectionConfidence: 0.5,
                     minTrackingConfidence: 0.5,
                 });
@@ -82,11 +81,6 @@ export class GazeEstimator {
         });
     }
 
-
-    /**
-     * Process a video frame
-     * @param {HTMLVideoElement} video - Video element with webcam feed
-     */
     async processFrame(video) {
         if (!this.isReady) return null;
         await this.faceMesh.send({ image: video });
@@ -94,7 +88,7 @@ export class GazeEstimator {
     }
 
     /**
-     * Extract features from face landmarks
+     * Extract features from all 478 face landmarks
      * @param {Object} results - MediaPipe FaceMesh results
      * @returns {Object} - { features, blinkDetected }
      */
@@ -105,14 +99,19 @@ export class GazeEstimator {
 
         const landmarks = results.multiFaceLandmarks[0];
 
-        // Convert landmarks to array of [x, y, z]
+        // Validate we have all landmarks (need iris landmarks for best accuracy)
+        if (landmarks.length < ALL_LANDMARK_COUNT) {
+            console.warn(`Expected ${ALL_LANDMARK_COUNT} landmarks, got ${landmarks.length}`);
+        }
+
+        // Convert all landmarks to array of [x, y, z]
         const allPoints = landmarks.map(lm => [lm.x, lm.y, lm.z]);
 
         // Nose anchor for normalization
-        const noseAnchor = allPoints[4];
-        const leftCorner = allPoints[33];
-        const rightCorner = allPoints[263];
-        const topOfHead = allPoints[10];
+        const noseAnchor = allPoints[POSE_LANDMARKS.nose];
+        const leftCorner = allPoints[POSE_LANDMARKS.leftEyeCorner];
+        const rightCorner = allPoints[POSE_LANDMARKS.rightEyeCorner];
+        const topOfHead = allPoints[POSE_LANDMARKS.topOfHead];
 
         // Shift points relative to nose
         const shiftedPoints = allPoints.map(p => [
@@ -147,7 +146,7 @@ export class GazeEstimator {
         // Rotation matrix
         const R = [xAxis, yApprox, zAxis];
 
-        // Rotate points
+        // Rotate all points
         const rotatedPoints = shiftedPoints.map(p => this._matVecMul(R, p));
 
         // Scale by inter-eye distance
@@ -167,29 +166,25 @@ export class GazeEstimator {
             ? rotatedPoints.map(p => p.map(v => v / interEyeDist))
             : rotatedPoints;
 
-        // Extract subset of indices
-        const subsetIndices = [...LEFT_EYE_INDICES, ...RIGHT_EYE_INDICES, ...MUTUAL_INDICES];
-        const eyeLandmarks = subsetIndices.map(i => scaledPoints[i]);
+        // Flatten ALL landmarks to feature vector (478 landmarks × 3 = 1434 values)
+        let features = scaledPoints.flat();
 
-        // Flatten to feature vector
-        let features = eyeLandmarks.flat();
-
-        // Add head pose (yaw, pitch, roll)
+        // Add head pose (yaw, pitch, roll) = 3 more values
         const yaw = Math.atan2(R[1][0], R[0][0]);
         const pitch = Math.atan2(-R[2][0], Math.sqrt(R[2][1] ** 2 + R[2][2] ** 2));
         const roll = Math.atan2(R[2][1], R[2][2]);
         features = [...features, yaw, pitch, roll];
 
         // Blink detection using Eye Aspect Ratio (EAR)
-        const leftEyeInner = [landmarks[133].x, landmarks[133].y];
-        const leftEyeOuter = [landmarks[33].x, landmarks[33].y];
-        const leftEyeTop = [landmarks[159].x, landmarks[159].y];
-        const leftEyeBottom = [landmarks[145].x, landmarks[145].y];
+        const leftEyeInner = [landmarks[LEFT_EYE_CORNERS.inner].x, landmarks[LEFT_EYE_CORNERS.inner].y];
+        const leftEyeOuter = [landmarks[LEFT_EYE_CORNERS.outer].x, landmarks[LEFT_EYE_CORNERS.outer].y];
+        const leftEyeTop = [landmarks[LEFT_EYE_CORNERS.top].x, landmarks[LEFT_EYE_CORNERS.top].y];
+        const leftEyeBottom = [landmarks[LEFT_EYE_CORNERS.bottom].x, landmarks[LEFT_EYE_CORNERS.bottom].y];
 
-        const rightEyeInner = [landmarks[362].x, landmarks[362].y];
-        const rightEyeOuter = [landmarks[263].x, landmarks[263].y];
-        const rightEyeTop = [landmarks[386].x, landmarks[386].y];
-        const rightEyeBottom = [landmarks[374].x, landmarks[374].y];
+        const rightEyeInner = [landmarks[RIGHT_EYE_CORNERS.inner].x, landmarks[RIGHT_EYE_CORNERS.inner].y];
+        const rightEyeOuter = [landmarks[RIGHT_EYE_CORNERS.outer].x, landmarks[RIGHT_EYE_CORNERS.outer].y];
+        const rightEyeTop = [landmarks[RIGHT_EYE_CORNERS.top].x, landmarks[RIGHT_EYE_CORNERS.top].y];
+        const rightEyeBottom = [landmarks[RIGHT_EYE_CORNERS.bottom].x, landmarks[RIGHT_EYE_CORNERS.bottom].y];
 
         const leftEyeWidth = this._distance2D(leftEyeOuter, leftEyeInner);
         const leftEyeHeight = this._distance2D(leftEyeTop, leftEyeBottom);
@@ -218,41 +213,22 @@ export class GazeEstimator {
         return { features, blinkDetected };
     }
 
-    /**
-     * Train the gaze model
-     * @param {number[][]} X - Feature matrix
-     * @param {number[][]} y - Target coordinates
-     */
     train(X, y) {
         this.model.train(X, y);
     }
 
-    /**
-     * Predict gaze location
-     * @param {number[]} features - Feature vector
-     * @returns {number[]} - [x, y] screen coordinates
-     */
     predict(features) {
         return this.model.predict(features);
     }
 
-    /**
-     * Check if model is trained
-     */
     isTrained() {
         return this.model.trained;
     }
 
-    /**
-     * Save model to localStorage
-     */
     saveModel(key = 'gazeModel') {
         localStorage.setItem(key, JSON.stringify(this.model.toJSON()));
     }
 
-    /**
-     * Load model from localStorage
-     */
     loadModel(key = 'gazeModel') {
         const data = localStorage.getItem(key);
         if (data) {

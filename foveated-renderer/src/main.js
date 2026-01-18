@@ -1,6 +1,7 @@
 /**
  * Main Application orchestrator.
  * Manages screen transitions: Home -> Calibration -> Demo -> Results.
+ * Uses decoupled gaze and render loops for performance.
  */
 
 // Vercel Analytics
@@ -16,7 +17,7 @@ import { CalibrationUI } from './calibration/CalibrationUI.js';
 import { RaymarchingRenderer } from './renderer/RaymarchingRenderer.js';
 import { KalmanFilter2D } from './utils/KalmanFilter.js';
 
-// New components
+// Components
 import { HomeScreen } from './screens/HomeScreen.js';
 import { DemoScreen } from './screens/DemoScreen.js';
 import { ResultsScreen } from './screens/ResultsScreen.js';
@@ -51,7 +52,7 @@ class App {
         this.gazeEstimator = null;
         this.calibrationUI = null;
         this.renderer = null;
-        this.kalmanFilter = new KalmanFilter2D({ Q: 0.5, R: 0.4 }); // Default smoothing 0.4
+        this.kalmanFilter = new KalmanFilter2D({ Q: 0.5, R: 0.4 });
 
         // Media
         this.video = null;
@@ -64,10 +65,15 @@ class App {
         this.fps = 0;
         this.lastFpsTime = performance.now();
         this.lastLandmarks = null;
+        this.calibrationQuality = 0;
 
-        // Gaze position
-        this.gazeX = 0.5;
-        this.gazeY = 0.5;
+        // Shared gaze state (updated by gaze loop, read by render loop)
+        this.gazeState = {
+            x: 0.5,
+            y: 0.5,
+            lastUpdate: 0,
+            avgSteps: 50
+        };
 
         this._init();
     }
@@ -159,8 +165,9 @@ class App {
             return await this.gazeEstimator.processFrame(this.video);
         };
 
-        this.calibrationUI.onComplete = (success) => {
+        this.calibrationUI.onComplete = (success, quality) => {
             this.isCalibrating = false;
+            this.calibrationQuality = quality || 0;
 
             if (success) {
                 this.gazeEstimator.saveModel();
@@ -196,84 +203,120 @@ class App {
         this.kalmanFilter.filterY.R = smoothing;
         this.kalmanFilter.reset();
 
-        // Start render loop
+        // Start DECOUPLED loops
         this.isRunning = true;
-        this._renderLoop();
+        this._startGazeLoop();
+        this._startRenderLoop();
     }
 
-    async _renderLoop() {
-        if (!this.isRunning || this.currentScreen !== SCREENS.DEMO) return;
+    /**
+     * Gaze processing loop - runs independently at ~30Hz
+     * Updates shared gazeState without blocking rendering
+     */
+    _startGazeLoop() {
+        const processGaze = async () => {
+            if (!this.isRunning || this.currentScreen !== SCREENS.DEMO) return;
 
-        // Process frame for gaze
-        const results = await this.gazeEstimator.processFrame(this.video);
+            try {
+                const results = await this.gazeEstimator.processFrame(this.video);
 
-        let avgSteps = 50; // Default for analytics
+                if (results && this.gazeEstimator.isTrained()) {
+                    const { features, blinkDetected } = this.gazeEstimator.extractFeatures(results);
+                    this.lastLandmarks = results.multiFaceLandmarks?.[0] || null;
 
-        if (results && this.gazeEstimator.isTrained()) {
-            const { features, blinkDetected } = this.gazeEstimator.extractFeatures(results);
-            this.lastLandmarks = results.multiFaceLandmarks?.[0] || null;
+                    if (features && !blinkDetected) {
+                        const [rawX, rawY] = this.gazeEstimator.predict(features);
 
-            if (features && !blinkDetected) {
-                const [rawX, rawY] = this.gazeEstimator.predict(features);
+                        // Update smoothing from slider
+                        const smoothing = this.demoScreen.getSmoothing();
+                        this.kalmanFilter.filterX.R = smoothing;
+                        this.kalmanFilter.filterY.R = smoothing;
 
-                // Update smoothing from slider
-                const smoothing = this.demoScreen.getSmoothing();
-                this.kalmanFilter.filterX.R = smoothing;
-                this.kalmanFilter.filterY.R = smoothing;
+                        const [smoothX, smoothY] = this.kalmanFilter.update(rawX, rawY);
 
-                const [smoothX, smoothY] = this.kalmanFilter.update(rawX, rawY);
+                        const gazeX = Math.max(0, Math.min(1, smoothX / window.innerWidth));
+                        const gazeY = Math.max(0, Math.min(1, smoothY / window.innerHeight));
 
-                this.gazeX = Math.max(0, Math.min(1, smoothX / window.innerWidth));
-                this.gazeY = Math.max(0, Math.min(1, smoothY / window.innerHeight));
+                        // Calculate LOD level for analytics
+                        const foveaFactor = Math.min(1, Math.sqrt(
+                            Math.pow(gazeX - 0.5, 2) + Math.pow(gazeY - 0.5, 2)
+                        ) * 3);
+                        const avgSteps = 80 - foveaFactor * 45;
 
-                this.renderer.setGazePoint(this.gazeX, this.gazeY);
-                this.demoScreen.updateGazePosition(this.gazeX, this.gazeY);
-
-                // Calculate LOD level for analytics
-                const foveaFactor = Math.min(1, Math.sqrt(
-                    Math.pow(this.gazeX - 0.5, 2) + Math.pow(this.gazeY - 0.5, 2)
-                ) * 3);
-                avgSteps = 80 - foveaFactor * 45; // 80 steps center → 35 periphery
-            }
-        }
-
-        // Update renderer settings
-        this.renderer.setHeatmap(this.demoScreen.shouldShowHeatmap());
-
-        // Render frame
-        this.renderer.render();
-
-        // Track compute cost
-        this.computeTracker.recordFrame(avgSteps);
-
-        // Update debug panel if visible
-        if (this.debugPanel.isVisible()) {
-            // Calculate FPS
-            this.frameCount++;
-            const now = performance.now();
-            if (now - this.lastFpsTime >= 1000) {
-                this.fps = this.frameCount;
-                this.frameCount = 0;
-                this.lastFpsTime = now;
+                        // Update shared state (read by render loop)
+                        this.gazeState = {
+                            x: gazeX,
+                            y: gazeY,
+                            lastUpdate: performance.now(),
+                            avgSteps: avgSteps
+                        };
+                    }
+                }
+            } catch (error) {
+                console.error('Gaze processing error:', error);
             }
 
-            this.debugPanel.updateStats({
-                fps: this.fps,
-                gazeX: this.gazeX,
-                gazeY: this.gazeY,
-                lodLevel: Math.min(1, Math.sqrt(
-                    Math.pow(this.gazeX - 0.5, 2) + Math.pow(this.gazeY - 0.5, 2)
-                ) * 3),
-                avgSteps: avgSteps,
-                eyeOpenness: 1.0,
-                calibrationScore: 85,
-                faceDetected: !!this.lastLandmarks
-            });
+            // Run gaze loop at ~30Hz (33ms interval)
+            setTimeout(processGaze, 33);
+        };
 
-            this.debugPanel.drawVideoWithLandmarks(this.video, this.lastLandmarks);
-        }
+        processGaze();
+    }
 
-        requestAnimationFrame(() => this._renderLoop());
+    /**
+     * Render loop - runs as fast as possible using requestAnimationFrame
+     * Reads from shared gazeState without waiting for gaze processing
+     */
+    _startRenderLoop() {
+        const render = () => {
+            if (!this.isRunning || this.currentScreen !== SCREENS.DEMO) return;
+
+            // Read from shared gaze state (non-blocking)
+            const { x: gazeX, y: gazeY, avgSteps } = this.gazeState;
+
+            // Update renderer with current gaze
+            this.renderer.setGazePoint(gazeX, gazeY);
+            this.demoScreen.updateGazePosition(gazeX, gazeY);
+
+            // Update renderer settings
+            this.renderer.setHeatmap(this.demoScreen.shouldShowHeatmap());
+
+            // Render frame
+            this.renderer.render();
+
+            // Track compute cost
+            this.computeTracker.recordFrame(avgSteps);
+
+            // Update debug panel if visible
+            if (this.debugPanel.isVisible()) {
+                this.frameCount++;
+                const now = performance.now();
+                if (now - this.lastFpsTime >= 1000) {
+                    this.fps = this.frameCount;
+                    this.frameCount = 0;
+                    this.lastFpsTime = now;
+                }
+
+                this.debugPanel.updateStats({
+                    fps: this.fps,
+                    gazeX: gazeX,
+                    gazeY: gazeY,
+                    lodLevel: Math.min(1, Math.sqrt(
+                        Math.pow(gazeX - 0.5, 2) + Math.pow(gazeY - 0.5, 2)
+                    ) * 3),
+                    avgSteps: avgSteps,
+                    eyeOpenness: 1.0,
+                    calibrationScore: this.calibrationQuality,
+                    faceDetected: !!this.lastLandmarks
+                });
+
+                this.debugPanel.drawVideoWithLandmarks(this.video, this.lastLandmarks);
+            }
+
+            requestAnimationFrame(render);
+        };
+
+        render();
     }
 
     _endDemo() {
@@ -320,7 +363,6 @@ class App {
                 this.homeScreen.show();
                 break;
             case SCREENS.CALIBRATION:
-                // Initialize screens
                 break;
             case SCREENS.DEMO:
                 this.demoScreen.show();

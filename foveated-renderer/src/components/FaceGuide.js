@@ -10,10 +10,18 @@ export class FaceGuide {
         this.ctx = null;
         this.faceDetected = false;
         this.facePosition = { x: 0.5, y: 0.5, size: 0 };
-        this.status = 'searching'; // 'searching' | 'too_far' | 'too_close' | 'off_center' | 'good'
+        this.status = 'searching';
         this.statusText = 'Looking for face...';
 
+        // Cached dimensions (avoid per-frame reflow)
+        this.cachedWidth = 0;
+        this.cachedHeight = 0;
+
         this._createCanvas();
+        this._cacheDimensions();
+
+        // Update dimensions on resize
+        window.addEventListener('resize', () => this._cacheDimensions());
     }
 
     _createCanvas() {
@@ -31,6 +39,15 @@ export class FaceGuide {
         this.container.style.position = 'relative';
         this.container.appendChild(this.canvas);
         this.ctx = this.canvas.getContext('2d');
+    }
+
+    /**
+     * Cache container dimensions to avoid per-frame reflow
+     */
+    _cacheDimensions() {
+        const rect = this.container.getBoundingClientRect();
+        this.cachedWidth = rect.width;
+        this.cachedHeight = rect.height;
     }
 
     /**
@@ -64,12 +81,12 @@ export class FaceGuide {
         this.facePosition = { x: centerX, y: centerY, size: faceSize };
 
         // Determine status based on position and size
-        const idealSize = 0.35; // Face should be ~35% of frame width
+        const idealSize = 0.35;
         const sizeTolerance = 0.1;
         const centerTolerance = 0.15;
 
         const offCenterX = Math.abs(centerX - 0.5);
-        const offCenterY = Math.abs(centerY - 0.45); // Slightly above center
+        const offCenterY = Math.abs(centerY - 0.45);
 
         if (faceSize < idealSize - sizeTolerance) {
             this.status = 'too_far';
@@ -90,13 +107,19 @@ export class FaceGuide {
      * Render the face guide overlay
      */
     render() {
-        const rect = this.container.getBoundingClientRect();
-        this.canvas.width = rect.width;
-        this.canvas.height = rect.height;
+        // Use cached dimensions (no reflow!)
+        const w = this.cachedWidth;
+        const h = this.cachedHeight;
+
+        if (w === 0 || h === 0) {
+            this._cacheDimensions();
+            return;
+        }
+
+        this.canvas.width = w;
+        this.canvas.height = h;
 
         const ctx = this.ctx;
-        const w = this.canvas.width;
-        const h = this.canvas.height;
 
         ctx.clearRect(0, 0, w, h);
 
@@ -107,14 +130,14 @@ export class FaceGuide {
         const ovalRadiusY = h * 0.28;
 
         // Determine color based on status
-        let guideColor = '#ff6b6b'; // Red - not good
+        let guideColor = '#ff6b6b';
         let bgAlpha = 0.3;
 
         if (this.status === 'good') {
-            guideColor = '#51cf66'; // Green - good
+            guideColor = '#51cf66';
             bgAlpha = 0.2;
         } else if (this.status === 'off_center') {
-            guideColor = '#ffd43b'; // Yellow - close
+            guideColor = '#ffd43b';
         }
 
         // Draw darkened area outside oval
@@ -201,6 +224,7 @@ export class FaceGuide {
      * Destroy the overlay
      */
     destroy() {
+        window.removeEventListener('resize', this._cacheDimensions);
         if (this.canvas && this.canvas.parentNode) {
             this.canvas.parentNode.removeChild(this.canvas);
         }

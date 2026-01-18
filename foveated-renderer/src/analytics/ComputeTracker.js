@@ -1,6 +1,7 @@
 /**
  * Tracks rendering compute costs.
  * Compares full-render baseline vs selective foveated rendering.
+ * Uses same frame count for both to ensure fair comparison.
  */
 export class ComputeTracker {
     constructor() {
@@ -8,7 +9,6 @@ export class ComputeTracker {
         this.FULL_RENDER_STEPS = 80;       // Max steps per pixel at full quality
         this.PERIPHERAL_STEPS = 35;         // Min steps in periphery
         this.DEMO_DURATION_SEC = 45;
-        this.TARGET_FPS = 60;
 
         // Cumulative data
         this.frameStepCounts = [];
@@ -17,8 +17,6 @@ export class ComputeTracker {
 
     /**
      * Start tracking compute cost for the session
-     * @param {number} width - Screen width (optional)
-     * @param {number} height - Screen height (optional)
      */
     startSession(width, height) {
         this.frameStepCounts = [];
@@ -43,10 +41,12 @@ export class ComputeTracker {
 
     /**
      * Get the full-render baseline cost
+     * Uses ACTUAL frames captured, not theoretical FPS
      * @returns {object} Cost metrics
      */
     getFullRenderCost() {
-        const totalFrames = this.DEMO_DURATION_SEC * this.TARGET_FPS;
+        // Use actual frame count for fair comparison
+        const totalFrames = this.frameStepCounts.length || 1;
         const stepsPerFrame = this.FULL_RENDER_STEPS;
         const computeUnits = totalFrames * stepsPerFrame;
 
@@ -91,17 +91,22 @@ export class ComputeTracker {
         const fullRender = this.getFullRenderCost();
         const selectiveRender = this.getSelectiveRenderCost();
 
-        // Calculate savings percentage
+        // Calculate savings percentage (now fair comparison)
         let savingsPercent = 0;
         if (fullRender.computeUnits > 0) {
             savingsPercent = ((fullRender.computeUnits - selectiveRender.computeUnits) / fullRender.computeUnits) * 100;
         }
 
+        // Calculate actual session duration based on frames
+        const actualDuration = this.frameStepCounts.length > 0
+            ? Math.min(this.DEMO_DURATION_SEC, Math.ceil(this.frameStepCounts.length / 30))
+            : this.DEMO_DURATION_SEC;
+
         return {
             fullRender,
             selectiveRender,
             savingsPercent: Math.round(savingsPercent),
-            sessionDurationSec: this.DEMO_DURATION_SEC,
+            sessionDurationSec: actualDuration,
             framesCaptured: selectiveRender.totalFrames
         };
     }
