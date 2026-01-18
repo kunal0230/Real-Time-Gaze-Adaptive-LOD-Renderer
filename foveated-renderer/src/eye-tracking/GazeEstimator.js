@@ -3,7 +3,7 @@
  * Ported from EyeTrax gaze.py
  */
 
-import { FaceMesh } from '@mediapipe/face_mesh';
+import * as faceMesh from '@mediapipe/face_mesh';
 import { LEFT_EYE_INDICES, RIGHT_EYE_INDICES, MUTUAL_INDICES } from './constants.js';
 import { RidgeRegression } from './RidgeRegression.js';
 
@@ -26,7 +26,15 @@ export class GazeEstimator {
      */
     async initialize() {
         return new Promise((resolve) => {
-            this.faceMesh = new FaceMesh({
+            // Handle different import structures (ESM vs CommonJS/Bundled)
+            const FaceMeshClass = faceMesh.FaceMesh || (faceMesh.default ? faceMesh.default.FaceMesh : null) || window.FaceMesh;
+
+            if (!FaceMeshClass) {
+                console.error("FaceMesh not found in import", faceMesh);
+                throw new Error('FaceMesh constructor not found');
+            }
+
+            this.faceMesh = new FaceMeshClass({
                 locateFile: (file) => {
                     return `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${file}`;
                 }
