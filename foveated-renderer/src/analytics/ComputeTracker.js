@@ -1,31 +1,40 @@
 /**
- * Tracks rendering compute costs.
- * Compares full-render baseline vs selective foveated rendering.
- * Uses same frame count for both to ensure fair comparison.
+ * ComputeTracker - Analytics module for tracking rendering compute costs
+ * Compares full-render baseline vs selective foveated rendering
  */
+
 export class ComputeTracker {
     constructor() {
         // Constants for baseline calculation
         this.FULL_RENDER_STEPS = 80;       // Max steps per pixel at full quality
         this.PERIPHERAL_STEPS = 35;         // Min steps in periphery
         this.DEMO_DURATION_SEC = 45;
+        this.TARGET_FPS = 60;
 
-        // Cumulative data
-        this.frameStepCounts = [];
+        // Session tracking
+        this.frameStepCounts = [];          // Array of average steps per frame
+        this.sessionStartTime = null;
+        this.sessionEndTime = null;
         this.isTracking = false;
+
+        // Estimated pixels (will be set based on resolution)
+        this.pixelCount = 1920 * 1080;      // Default, updated at runtime
     }
 
     /**
-     * Start tracking compute cost for the session
+     * Start a new tracking session
      */
-    startSession(width, height) {
+    startSession(width = 1920, height = 1080) {
         this.frameStepCounts = [];
+        this.pixelCount = width * height;
+        this.sessionStartTime = Date.now();
+        this.sessionEndTime = null;
         this.isTracking = true;
     }
 
     /**
-     * Record the Average Steps taken for a frame
-     * @param {number} avgSteps Average raymarching steps for this frame
+     * Record compute cost for a single frame
+     * @param {number} avgSteps - Average step count per pixel for this frame
      */
     recordFrame(avgSteps) {
         if (!this.isTracking) return;
@@ -33,33 +42,35 @@ export class ComputeTracker {
     }
 
     /**
-     * Stop tracking compute cost
+     * End the current tracking session
      */
     endSession() {
+        this.sessionEndTime = Date.now();
         this.isTracking = false;
     }
 
     /**
-     * Get the full-render baseline cost
-     * Uses ACTUAL frames captured, not theoretical FPS
+     * Get the static full-render baseline cost
+     * This is constant since we know the scene and duration
      * @returns {object} Cost metrics
      */
     getFullRenderCost() {
-        // Use actual frame count for fair comparison
-        const totalFrames = this.frameStepCounts.length || 1;
-        const stepsPerFrame = this.FULL_RENDER_STEPS;
-        const computeUnits = totalFrames * stepsPerFrame;
+        const totalFrames = this.DEMO_DURATION_SEC * this.TARGET_FPS;
+        const stepsPerFrame = this.FULL_RENDER_STEPS; // Uniform high quality
+        const totalSteps = totalFrames * stepsPerFrame;
 
         return {
             totalFrames,
-            avgStepsPerFrame: stepsPerFrame,
-            computeUnits,
-            label: 'Full Render'
+            avgStepsPerFrame: this.FULL_RENDER_STEPS,
+            totalSteps,
+            // Normalized "compute units" for comparison
+            computeUnits: totalSteps
         };
     }
 
     /**
-     * Get the selective-render cost for this session
+     * Get the dynamic selective-render cost for this session
+     * This varies based on where the user looked
      * @returns {object} Cost metrics
      */
     getSelectiveRenderCost() {
@@ -67,55 +78,63 @@ export class ComputeTracker {
             return {
                 totalFrames: 0,
                 avgStepsPerFrame: 0,
-                computeUnits: 0,
-                label: 'Selective Render'
+                totalSteps: 0,
+                computeUnits: 0
             };
         }
 
         const totalFrames = this.frameStepCounts.length;
-        const totalSteps = this.frameStepCounts.reduce((a, b) => a + b, 0);
+        const totalSteps = this.frameStepCounts.reduce((sum, steps) => sum + steps, 0);
         const avgStepsPerFrame = totalSteps / totalFrames;
 
         return {
             totalFrames,
-            avgStepsPerFrame: Math.round(avgStepsPerFrame),
-            computeUnits: Math.round(totalSteps),
-            label: 'Selective Render'
+            avgStepsPerFrame: Math.round(avgStepsPerFrame * 10) / 10,
+            totalSteps: Math.round(totalSteps),
+            computeUnits: Math.round(totalSteps)
         };
     }
 
     /**
-     * Get session summary for the results screen
+     * Get savings percentage
+     * @returns {number} Percentage saved (0-100)
+     */
+    getSavingsPercent() {
+        const full = this.getFullRenderCost();
+        const selective = this.getSelectiveRenderCost();
+
+        if (full.computeUnits === 0) return 0;
+
+        // Normalize to same frame count for fair comparison
+        const normalizedSelective = (selective.avgStepsPerFrame / this.FULL_RENDER_STEPS) * 100;
+        const savings = 100 - normalizedSelective;
+
+        return Math.round(savings * 10) / 10; // One decimal place
+    }
+
+    /**
+     * Get session duration in seconds
+     */
+    getSessionDuration() {
+        if (!this.sessionStartTime) return 0;
+        const endTime = this.sessionEndTime || Date.now();
+        return (endTime - this.sessionStartTime) / 1000;
+    }
+
+    /**
+     * Get detailed analytics summary
      */
     getSummary() {
-        const fullRender = this.getFullRenderCost();
-        const selectiveRender = this.getSelectiveRenderCost();
-
-        // Calculate savings percentage (now fair comparison)
-        let savingsPercent = 0;
-        if (fullRender.computeUnits > 0) {
-            savingsPercent = ((fullRender.computeUnits - selectiveRender.computeUnits) / fullRender.computeUnits) * 100;
-        }
-
-        // Calculate actual session duration based on frames
-        const actualDuration = this.frameStepCounts.length > 0
-            ? Math.min(this.DEMO_DURATION_SEC, Math.ceil(this.frameStepCounts.length / 30))
-            : this.DEMO_DURATION_SEC;
+        const full = this.getFullRenderCost();
+        const selective = this.getSelectiveRenderCost();
+        const savings = this.getSavingsPercent();
 
         return {
-            fullRender,
-            selectiveRender,
-            savingsPercent: Math.round(savingsPercent),
-            sessionDurationSec: actualDuration,
-            framesCaptured: selectiveRender.totalFrames
+            fullRender: full,
+            selectiveRender: selective,
+            savingsPercent: savings,
+            sessionDurationSec: Math.round(this.getSessionDuration() * 10) / 10,
+            framesCaptured: this.frameStepCounts.length
         };
-    }
-
-    /**
-     * Format a large number for display
-     * @param {number} num 
-     */
-    formatSteps(num) {
-        return new Intl.NumberFormat().format(Math.round(num));
     }
 }

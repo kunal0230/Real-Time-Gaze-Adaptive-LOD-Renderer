@@ -14,14 +14,14 @@ export class ResultsScreen {
         this.container.innerHTML = `
             <div class="results-screen">
                 <header class="results-header">
-                    <h1>Session Analytics</h1>
+                    <h1>📊 Session Analytics</h1>
                     <p class="subtitle">Here's how foveated rendering saved compute resources</p>
                 </header>
                 
                 <div class="results-content">
                     <div class="comparison-section">
                         <div class="cost-card full-render">
-                            <div class="cost-icon">Baseline</div>
+                            <div class="cost-icon">🖥️</div>
                             <h3>Full Render</h3>
                             <p class="cost-description">Uniform high quality everywhere</p>
                             <div class="cost-value" id="full-render-cost">--</div>
@@ -34,7 +34,7 @@ export class ResultsScreen {
                         <div class="vs-indicator">VS</div>
                         
                         <div class="cost-card selective-render">
-                            <div class="cost-icon">Adaptive</div>
+                            <div class="cost-icon">👁️</div>
                             <h3>Selective Render</h3>
                             <p class="cost-description">High detail only where you looked</p>
                             <div class="cost-value" id="selective-render-cost">--</div>
@@ -46,7 +46,7 @@ export class ResultsScreen {
                     </div>
                     
                     <div class="savings-section">
-                        <h3>Compute Savings</h3>
+                        <h3>💰 Compute Savings</h3>
                         <div class="savings-bar-container">
                             <div class="savings-bar" id="savings-bar"></div>
                             <div class="savings-percentage" id="savings-percentage">0%</div>
@@ -81,7 +81,7 @@ export class ResultsScreen {
                     
                     <div class="action-buttons">
                         <button class="try-again-btn" id="try-again-btn">
-                            Try Again
+                            🔄 Try Again
                         </button>
                     </div>
                 </div>

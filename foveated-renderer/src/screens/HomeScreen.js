@@ -1,134 +1,200 @@
 /**
- * HomeScreen - Landing page with camera preview, face guide, and instructions
+ * HomeScreen - Professional layout with calibration info and performance disclaimer
  */
+
+import { SceneCard } from '../components/SceneCard.js';
+import { CosmicOrbs } from '../scenes/CosmicOrbs.js';
+import { CrystalGrid } from '../scenes/CrystalGrid.js';
+import { ForestValley } from '../scenes/ForestValley.js';
 
 export class HomeScreen {
     constructor(containerId) {
         this.container = document.getElementById(containerId);
-        this.onStart = null; // Callback when user clicks start
+        this.onStart = null;
+        this.onTutorial = null;
         this.faceReady = false;
+
+        this.scenes = [
+            new CosmicOrbs(),
+            new CrystalGrid(),
+            new ForestValley()
+        ];
+        this.selectedScene = this.scenes[0];
+        this.sceneCards = [];
 
         this._createLayout();
     }
 
     _createLayout() {
         this.container.innerHTML = `
-            <div class="home-screen">
+            <div class="home-screen compact">
                 <header class="home-header">
-                    <h1>Gaze-Controlled Foveated Rendering</h1>
-                    <p class="subtitle">Experience game-style Level of Detail based on where you look</p>
+                    <div class="header-content">
+                        <h1>Gaze-Adaptive Rendering</h1>
+                        <p class="subtitle">Real-time Level of Detail based on eye tracking</p>
+                    </div>
+                    <div class="header-actions">
+                        <span class="renderer-badge" id="renderer-badge">WebGL2</span>
+                        <button class="tutorial-btn" id="tutorial-btn">
+                            <span class="icon">?</span>
+                            Guide
+                        </button>
+                    </div>
                 </header>
                 
-                <div class="home-content">
-                    <div class="camera-section">
+                <div class="home-content compact">
+                    <section class="left-panel">
+                        <div class="scene-section compact">
+                            <h2>Select Scene</h2>
+                            <div class="scene-grid compact" id="scene-grid"></div>
+                        </div>
+                        
+                        <div class="info-section">
+                            <div class="info-card calibration-info">
+                                <h3>Calibration</h3>
+                                <p>You will see 9 dots appear on screen. <strong>Look directly at each dot</strong> until it moves. Keep your head still and only move your eyes.</p>
+                            </div>
+                            
+                            <div class="info-card performance-note">
+                                <h3>Performance Note</h3>
+                                <p>This demo uses real-time raymarching which requires GPU power. If you experience lag, try <strong>Cosmic Orbs</strong>.</p>
+                            </div>
+                        </div>
+                        
+                        <div class="action-section">
+                            <div class="camera-status" id="camera-status">
+                                <span class="status-dot"></span>
+                                <span class="status-text">Position face in the camera</span>
+                            </div>
+                            <button class="start-button" id="start-btn" disabled>
+                                Start Calibration
+                            </button>
+                        </div>
+                    </section>
+                    
+                    <section class="camera-section compact">
                         <div class="camera-preview" id="camera-preview">
                             <video id="home-video" autoplay playsinline muted></video>
                             <div class="camera-placeholder">
-                                <div class="camera-icon">Camera</div>
-                                <p>Camera initializing...</p>
+                                <div class="spinner"></div>
+                                <p>Initializing camera...</p>
                             </div>
                         </div>
-                        <button class="start-button" id="start-btn" disabled>
-                            <span class="btn-icon"></span>
-                            Start Calibration
-                        </button>
-                    </div>
-                    
-                    <div class="instructions-section">
-                        <div class="instruction-card">
-                            <h3>How It Works</h3>
-                            <p>This demo uses your webcam to track where you're looking. The 3D scene 
-                            renders <strong>high detail where you look</strong> and 
-                            <strong>lower detail in your peripheral vision</strong> — just like how 
-                            your eyes actually work!</p>
-                            <p class="highlight">This technique can save up to <strong>50% compute cost</strong> 
-                            while maintaining perceived visual quality.</p>
-                        </div>
-                        
-                        <div class="instruction-card dos-donts">
-                            <div class="do-col">
-                                <h4>Do's</h4>
-                                <ul>
-                                    <li>Use good, even lighting</li>
-                                    <li>Face the camera directly</li>
-                                    <li>Keep your head relatively still</li>
-                                    <li>Position face in the guide oval</li>
-                                    <li>Look at different parts of the scene</li>
-                                </ul>
+                        <div class="requirements-list">
+                            <div class="req-item">
+                                <span class="req-icon check">&#10003;</span>
+                                <span>Good lighting</span>
                             </div>
-                            <div class="dont-col">
-                                <h4>Don'ts</h4>
-                                <ul>
-                                    <li>Strong backlighting</li>
-                                    <li>Multiple faces in frame</li>
-                                    <li>Extreme head angles</li>
-                                    <li>Glasses with heavy glare</li>
-                                    <li>Moving around excessively</li>
-                                </ul>
+                            <div class="req-item">
+                                <span class="req-icon check">&#10003;</span>
+                                <span>Face camera</span>
+                            </div>
+                            <div class="req-item">
+                                <span class="req-icon check">&#10003;</span>
+                                <span>Head still</span>
                             </div>
                         </div>
-                        
-                        <div class="instruction-card demo-info">
-                            <h4>Demo Duration</h4>
-                            <p>The interactive demo runs for <strong>45 seconds</strong>. 
-                            Look around the scene to explore the forest landscape. 
-                            After the demo, you'll see analytics comparing compute costs.</p>
-                        </div>
-                    </div>
+                    </section>
                 </div>
                 
-                <footer class="home-footer">
-                    <p>Built with WebGL2 • MediaPipe Face Mesh • Ridge Regression</p>
+                <footer class="home-footer compact">
+                    <p>Built with WebGL2, MediaPipe Face Mesh, and Ridge Regression | Demo runs for 45 seconds</p>
                 </footer>
             </div>
         `;
 
-        // Get references
+        const sceneGrid = document.getElementById('scene-grid');
+        this.scenes.forEach((scene, index) => {
+            const card = new SceneCard(scene, (selectedScene) => {
+                this._selectScene(selectedScene);
+            });
+            this.sceneCards.push(card);
+            sceneGrid.appendChild(card.getElement());
+
+            if (index === 0) {
+                card.setSelected(true);
+            }
+        });
+
         this.video = document.getElementById('home-video');
         this.startBtn = document.getElementById('start-btn');
         this.cameraPreview = document.getElementById('camera-preview');
+        this.cameraStatus = document.getElementById('camera-status');
+        this.tutorialBtn = document.getElementById('tutorial-btn');
+        this.rendererBadge = document.getElementById('renderer-badge');
 
-        // Button click handler
         this.startBtn.addEventListener('click', () => {
             if (this.onStart && this.faceReady) {
-                this.onStart();
+                this.onStart(this.selectedScene);
             }
+        });
+
+        this.tutorialBtn.addEventListener('click', () => {
+            if (this.onTutorial) this.onTutorial();
+        });
+
+        this._checkRendererSupport();
+    }
+
+    async _checkRendererSupport() {
+        if (navigator.gpu) {
+            try {
+                const adapter = await navigator.gpu.requestAdapter();
+                if (adapter) {
+                    this.rendererBadge.textContent = 'WebGPU';
+                    this.rendererBadge.classList.add('webgpu');
+                    return;
+                }
+            } catch (e) {
+                // Fall through
+            }
+        }
+        this.rendererBadge.textContent = 'WebGL2';
+        this.rendererBadge.classList.add('webgl');
+    }
+
+    _selectScene(scene) {
+        this.selectedScene = scene;
+        this.sceneCards.forEach(card => {
+            card.setSelected(card.scene === scene);
         });
     }
 
-    /**
-     * Get video element for camera stream
-     */
     getVideoElement() {
         return this.video;
     }
 
-    /**
-     * Get camera preview container for face guide
-     */
     getCameraContainer() {
         return this.cameraPreview;
     }
 
-    /**
-     * Update face detection status
-     * @param {boolean} detected - Whether face is detected
-     * @param {boolean} ready - Whether face is in good position
-     */
+    getSelectedScene() {
+        return this.selectedScene;
+    }
+
     updateFaceStatus(detected, ready) {
         this.faceReady = ready;
         this.startBtn.disabled = !ready;
 
+        const statusDot = this.cameraStatus.querySelector('.status-dot');
+        const statusText = this.cameraStatus.querySelector('.status-text');
+
         if (ready) {
             this.startBtn.classList.add('ready');
+            statusDot.classList.add('ready');
+            statusText.textContent = 'Ready to calibrate';
+        } else if (detected) {
+            this.startBtn.classList.remove('ready');
+            statusDot.classList.remove('ready');
+            statusDot.classList.add('detected');
+            statusText.textContent = 'Adjust position';
         } else {
             this.startBtn.classList.remove('ready');
+            statusDot.classList.remove('ready', 'detected');
+            statusText.textContent = 'Looking for face...';
         }
     }
 
-    /**
-     * Show camera is active
-     */
     showCameraActive() {
         const placeholder = this.container.querySelector('.camera-placeholder');
         if (placeholder) {
@@ -136,23 +202,18 @@ export class HomeScreen {
         }
     }
 
-    /**
-     * Set callback for start button
-     */
     setOnStart(callback) {
         this.onStart = callback;
     }
 
-    /**
-     * Show the screen
-     */
+    setOnTutorial(callback) {
+        this.onTutorial = callback;
+    }
+
     show() {
         this.container.style.display = 'block';
     }
 
-    /**
-     * Hide the screen
-     */
     hide() {
         this.container.style.display = 'none';
     }

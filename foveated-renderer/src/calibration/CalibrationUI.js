@@ -1,8 +1,6 @@
 /**
- * Manages the gaze calibration process.
- * - Pulse phase: 1 second animation to attract attention
- * - Capture phase: 1 second of continuous sample collection
- * - No averaging - train on ALL samples
+ * 9-Point Calibration UI with Instruction Screen
+ * Shows instructions first, then starts dot calibration on button click
  */
 
 export class CalibrationUI {
@@ -12,12 +10,12 @@ export class CalibrationUI {
         this.point = document.getElementById('calibration-point');
         this.status = document.getElementById('calibration-status');
 
-        // Calibration settings - match Python defaults
-        this.pulseDuration = options.pulseDuration || 1000;  // 1 second pulse
-        this.captureDuration = options.captureDuration || 1000; // 1 second capture
-        this.marginRatio = options.marginRatio || 0.10; // 10% margin
+        // Calibration settings
+        this.pulseDuration = options.pulseDuration || 1000;
+        this.captureDuration = options.captureDuration || 1000;
+        this.marginRatio = options.marginRatio || 0.12; // 12% margin for safety
 
-        // Collected data - ALL samples, not averaged!
+        // Collected data
         this.features = [];
         this.targets = [];
 
@@ -30,13 +28,13 @@ export class CalibrationUI {
     }
 
     /**
-     * Get calibration points using the same algorithm as Python
+     * Get calibration points - adapts to any screen size
      */
     getCalibrationPoints() {
         const sw = window.innerWidth;
         const sh = window.innerHeight;
 
-        // Order: center, corners, edges (same as EyeTrax nine_point.py)
+        // 3x3 grid order: center, corners, edges
         const order = [
             [1, 1], // Center
             [0, 0], // Top-left
@@ -49,17 +47,14 @@ export class CalibrationUI {
             [1, 2], // Bottom-center
         ];
 
-        // Match Python's compute_grid_points exactly
-        const maxR = Math.max(...order.map(([r, _]) => r));
-        const maxC = Math.max(...order.map(([_, c]) => c));
-
+        // Calculate grid with margins (percentage-based for any screen size)
         const mx = Math.floor(sw * this.marginRatio);
         const my = Math.floor(sh * this.marginRatio);
         const gw = sw - 2 * mx;
         const gh = sh - 2 * my;
 
-        const stepX = maxC === 0 ? 0 : gw / maxC;
-        const stepY = maxR === 0 ? 0 : gh / maxR;
+        const stepX = gw / 2;
+        const stepY = gh / 2;
 
         return order.map(([r, c]) => ({
             x: mx + Math.floor(c * stepX),
@@ -68,19 +63,97 @@ export class CalibrationUI {
     }
 
     /**
-     * Start calibration process - matches Python _pulse_and_capture
+     * Show instruction screen first, then start on button click
      */
     async start(processFrame) {
-        this.isRunning = true;
         this.features = [];
         this.targets = [];
 
-        const points = this.getCalibrationPoints();
+        // Show overlay with instruction screen
         this.overlay.classList.remove('hidden');
+        this.point.style.display = 'none';
 
-        // Initial countdown
-        this.status.textContent = 'Get ready - look at each point...';
-        await this._delay(1500);
+        // Create instruction screen
+        this._showInstructions();
+
+        // Wait for user to click Start
+        await this._waitForStartClick();
+
+        // Remove instruction screen
+        this._hideInstructions();
+
+        // Now run actual calibration
+        await this._runCalibration(processFrame);
+    }
+
+    _showInstructions() {
+        // Create instruction container
+        const instructionDiv = document.createElement('div');
+        instructionDiv.id = 'calibration-instructions';
+        instructionDiv.className = 'calibration-instructions';
+        instructionDiv.innerHTML = `
+            <div class="instruction-card">
+                <h2>Calibration Instructions</h2>
+                <div class="instruction-steps">
+                    <div class="step">
+                        <span class="step-num">1</span>
+                        <span>Keep your head still during calibration</span>
+                    </div>
+                    <div class="step">
+                        <span class="step-num">2</span>
+                        <span>A dot will appear at 9 different positions</span>
+                    </div>
+                    <div class="step">
+                        <span class="step-num">3</span>
+                        <span>Look directly at each dot until it moves</span>
+                    </div>
+                    <div class="step">
+                        <span class="step-num">4</span>
+                        <span>Only move your eyes, not your head</span>
+                    </div>
+                </div>
+                <p class="instruction-note">The process takes about 20 seconds</p>
+                <button id="begin-calibration-btn" class="begin-calibration-btn">
+                    Begin Calibration
+                </button>
+            </div>
+        `;
+        this.overlay.appendChild(instructionDiv);
+    }
+
+    _hideInstructions() {
+        const instructionDiv = document.getElementById('calibration-instructions');
+        if (instructionDiv) {
+            instructionDiv.remove();
+        }
+        this.point.style.display = 'block';
+    }
+
+    _waitForStartClick() {
+        return new Promise(resolve => {
+            const btn = document.getElementById('begin-calibration-btn');
+            if (btn) {
+                btn.addEventListener('click', () => {
+                    resolve();
+                }, { once: true });
+            } else {
+                // Fallback if button not found
+                setTimeout(resolve, 100);
+            }
+        });
+    }
+
+    async _runCalibration(processFrame) {
+        this.isRunning = true;
+        const points = this.getCalibrationPoints();
+
+        // Brief countdown
+        this.status.textContent = 'Starting in 3...';
+        await this._delay(700);
+        this.status.textContent = 'Starting in 2...';
+        await this._delay(700);
+        this.status.textContent = 'Starting in 1...';
+        await this._delay(700);
 
         for (let i = 0; i < points.length; i++) {
             if (!this.isRunning) break;
@@ -91,20 +164,17 @@ export class CalibrationUI {
             this.point.style.left = `${pt.x}px`;
             this.point.style.top = `${pt.y}px`;
 
-            // === PULSE PHASE (1 second) ===
-            // Just attract attention, no sample collection
-            this.status.textContent = `Point ${i + 1}/${points.length} - Focus on the dot`;
+            // PULSE PHASE
+            this.status.textContent = `Point ${i + 1}/${points.length} - Look at the dot`;
             const pulseStart = performance.now();
 
             while (performance.now() - pulseStart < this.pulseDuration) {
                 if (!this.isRunning) break;
-                // Just wait and animate (CSS handles animation)
                 await this._delay(50);
             }
 
-            // === CAPTURE PHASE (1 second) ===
-            // Collect samples continuously like Python does
-            this.status.textContent = `Point ${i + 1}/${points.length} - Collecting...`;
+            // CAPTURE PHASE
+            this.status.textContent = `Point ${i + 1}/${points.length} - Hold...`;
             const captureStart = performance.now();
             let samplesThisPoint = 0;
 
@@ -116,15 +186,13 @@ export class CalibrationUI {
                     const { features, blinkDetected } = this.gazeEstimator.extractFeatures(results);
 
                     if (features && !blinkDetected) {
-                        // Store EACH sample separately (like Python)
-                        this.features.push([...features]); // Clone the array
+                        this.features.push([...features]);
                         this.targets.push([pt.x, pt.y]);
                         samplesThisPoint++;
                     }
                 }
 
-                // Small delay to not overwhelm
-                await this._delay(33); // ~30fps
+                await this._delay(33);
             }
 
             console.log(`Point ${i + 1}: collected ${samplesThisPoint} samples`);
@@ -139,18 +207,12 @@ export class CalibrationUI {
             }
         }
 
-        // Hide overlay
+        // Complete
         this.overlay.classList.add('hidden');
         this.isRunning = false;
 
         console.log(`Total samples collected: ${this.features.length}`);
 
-        // Calculate calibration quality (based on samples per point and coverage)
-        const samplesPerPoint = this.features.length / points.length;
-        const idealSamplesPerPoint = 30; // ~30fps × 1sec capture
-        const quality = Math.min(100, Math.round((samplesPerPoint / idealSamplesPerPoint) * 100));
-
-        // Train model if we have enough data
         if (this.features.length >= 20) {
             this.status.textContent = 'Training model...';
 
@@ -158,30 +220,28 @@ export class CalibrationUI {
                 this.gazeEstimator.train(this.features, this.targets);
 
                 if (this.onComplete) {
-                    this.onComplete(true, quality);
+                    this.onComplete(true);
                 }
                 return true;
             } catch (error) {
                 console.error('Training failed:', error);
                 if (this.onComplete) {
-                    this.onComplete(false, 0);
+                    this.onComplete(false);
                 }
                 return false;
             }
         } else {
             console.error(`Not enough samples: ${this.features.length}`);
             if (this.onComplete) {
-                this.onComplete(false, 0);
+                this.onComplete(false);
             }
             return false;
         }
     }
 
-    /**
-     * Cancel calibration
-     */
     cancel() {
         this.isRunning = false;
+        this._hideInstructions();
         this.overlay.classList.add('hidden');
     }
 

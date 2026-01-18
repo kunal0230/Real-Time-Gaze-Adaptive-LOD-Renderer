@@ -58,7 +58,7 @@ export class DebugPanel {
             font-weight: bold;
             font-size: 14px;
         `;
-        header.textContent = 'DEBUG MODE';
+        header.textContent = '🔧 DEBUG MODE';
         this.container.appendChild(header);
 
         // Video canvas for face landmarks

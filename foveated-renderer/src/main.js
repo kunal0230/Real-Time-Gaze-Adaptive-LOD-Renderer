@@ -1,31 +1,24 @@
 /**
- * Main Application orchestrator.
- * Manages screen transitions: Home -> Calibration -> Demo -> Results.
- * Uses decoupled gaze and render loops for performance.
+ * Foveated Renderer - Main Application
+ * Multi-screen architecture with scene selection and tutorial
  */
-
-// Vercel Analytics
-import { inject } from '@vercel/analytics';
-import { injectSpeedInsights } from '@vercel/speed-insights';
-
-// Initialize Vercel Analytics
-inject();
-injectSpeedInsights();
 
 import { GazeEstimator } from './eye-tracking/GazeEstimator.js';
 import { CalibrationUI } from './calibration/CalibrationUI.js';
-import { RaymarchingRenderer } from './renderer/RaymarchingRenderer.js';
+import { SceneRenderer } from './renderer/SceneRenderer.js';
 import { KalmanFilter2D } from './utils/KalmanFilter.js';
 
-// Components
+// Screens
 import { HomeScreen } from './screens/HomeScreen.js';
 import { DemoScreen } from './screens/DemoScreen.js';
 import { ResultsScreen } from './screens/ResultsScreen.js';
+
+// Components
 import { FaceGuide } from './components/FaceGuide.js';
 import { DebugPanel } from './components/DebugPanel.js';
+import { TutorialModal } from './components/TutorialModal.js';
 import { ComputeTracker } from './analytics/ComputeTracker.js';
 
-// Screen states
 const SCREENS = {
     HOME: 'home',
     CALIBRATION: 'calibration',
@@ -35,10 +28,9 @@ const SCREENS = {
 
 class App {
     constructor() {
-        // Current screen
         this.currentScreen = SCREENS.HOME;
 
-        // Screen instances
+        // Screens
         this.homeScreen = new HomeScreen('home-screen');
         this.demoScreen = new DemoScreen('demo-screen');
         this.resultsScreen = new ResultsScreen('results-screen');
@@ -46,6 +38,7 @@ class App {
         // Components
         this.faceGuide = null;
         this.debugPanel = new DebugPanel();
+        this.tutorialModal = new TutorialModal();
         this.computeTracker = new ComputeTracker();
 
         // Core systems
@@ -60,18 +53,16 @@ class App {
 
         // State
         this.isRunning = false;
-        this.isCalibrating = false;
+        this.selectedScene = null;
         this.frameCount = 0;
         this.fps = 0;
         this.lastFpsTime = performance.now();
         this.lastLandmarks = null;
-        this.calibrationQuality = 0;
 
-        // Shared gaze state (updated by gaze loop, read by render loop)
+        // Shared gaze state (for decoupled loops)
         this.gazeState = {
             x: 0.5,
             y: 0.5,
-            lastUpdate: 0,
             avgSteps: 50
         };
 
@@ -79,8 +70,12 @@ class App {
     }
 
     async _init() {
-        // Set up screen callbacks
-        this.homeScreen.setOnStart(() => this._startCalibration());
+        // Screen callbacks
+        this.homeScreen.setOnStart((scene) => {
+            this.selectedScene = scene;
+            this._startCalibration();
+        });
+        this.homeScreen.setOnTutorial(() => this.tutorialModal.show());
         this.demoScreen.setOnTimerEnd(() => this._endDemo());
         this.demoScreen.setOnDebugToggle((show) => {
             if (show) this.debugPanel.show();
@@ -88,10 +83,7 @@ class App {
         });
         this.resultsScreen.setOnRestart(() => this._restartFromHome());
 
-        // Show home screen initially
         this._showScreen(SCREENS.HOME);
-
-        // Start at home screen
         await this._initCamera();
     }
 
@@ -99,26 +91,21 @@ class App {
         try {
             this.stream = await navigator.mediaDevices.getUserMedia({
                 video: {
-                    width: { ideal: 640 },
-                    height: { ideal: 480 },
+                    width: { ideal: 1280 },
+                    height: { ideal: 720 },
                     facingMode: 'user'
                 }
             });
 
-            // Set up video for home screen
             this.video = this.homeScreen.getVideoElement();
             this.video.srcObject = this.stream;
             await this.video.play();
             this.homeScreen.showCameraActive();
 
-            // Initialize gaze estimator for face detection
             this.gazeEstimator = new GazeEstimator();
             await this.gazeEstimator.initialize();
 
-            // Set up face guide overlay
             this.faceGuide = new FaceGuide('camera-preview');
-
-            // Start face detection loop
             this._startFaceDetectionLoop();
 
         } catch (error) {
@@ -156,19 +143,14 @@ class App {
 
     async _startCalibration() {
         this._showScreen(SCREENS.CALIBRATION);
-        this.isCalibrating = true;
 
-        // Create calibration UI
         this.calibrationUI = new CalibrationUI(this.gazeEstimator);
 
         const processFrame = async () => {
             return await this.gazeEstimator.processFrame(this.video);
         };
 
-        this.calibrationUI.onComplete = (success, quality) => {
-            this.isCalibrating = false;
-            this.calibrationQuality = quality || 0;
-
+        this.calibrationUI.onComplete = (success) => {
             if (success) {
                 this.gazeEstimator.saveModel();
                 this._startDemo();
@@ -183,35 +165,31 @@ class App {
     _startDemo() {
         this._showScreen(SCREENS.DEMO);
 
-        // Initialize renderer on demo canvas
         const canvas = this.demoScreen.getCanvas();
-        this.renderer = new RaymarchingRenderer(canvas);
+
+        // Use new SceneRenderer with selected scene
+        this.renderer = new SceneRenderer(canvas);
+        this.renderer.loadScene(this.selectedScene);
         this.renderer.resize();
 
-        // Reset demo screen
         this.demoScreen.reset();
-
-        // Start analytics tracking
         this.computeTracker.startSession(canvas.width, canvas.height);
-
-        // Start timer
         this.demoScreen.startTimer();
 
-        // Update smoothing from slider
         const smoothing = this.demoScreen.getSmoothing();
         this.kalmanFilter.filterX.R = smoothing;
         this.kalmanFilter.filterY.R = smoothing;
         this.kalmanFilter.reset();
 
-        // Start DECOUPLED loops
         this.isRunning = true;
+
+        // Start DECOUPLED loops
         this._startGazeLoop();
         this._startRenderLoop();
     }
 
     /**
-     * Gaze processing loop - runs independently at ~30Hz
-     * Updates shared gazeState without blocking rendering
+     * Gaze loop - runs at ~30Hz independently
      */
     _startGazeLoop() {
         const processGaze = async () => {
@@ -227,67 +205,49 @@ class App {
                     if (features && !blinkDetected) {
                         const [rawX, rawY] = this.gazeEstimator.predict(features);
 
-                        // Update smoothing from slider
                         const smoothing = this.demoScreen.getSmoothing();
                         this.kalmanFilter.filterX.R = smoothing;
                         this.kalmanFilter.filterY.R = smoothing;
 
                         const [smoothX, smoothY] = this.kalmanFilter.update(rawX, rawY);
 
-                        const gazeX = Math.max(0, Math.min(1, smoothX / window.innerWidth));
-                        const gazeY = Math.max(0, Math.min(1, smoothY / window.innerHeight));
+                        this.gazeState.x = Math.max(0, Math.min(1, smoothX / window.innerWidth));
+                        this.gazeState.y = Math.max(0, Math.min(1, smoothY / window.innerHeight));
 
-                        // Calculate LOD level for analytics
+                        // Calculate LOD for analytics
                         const foveaFactor = Math.min(1, Math.sqrt(
-                            Math.pow(gazeX - 0.5, 2) + Math.pow(gazeY - 0.5, 2)
+                            Math.pow(this.gazeState.x - 0.5, 2) + Math.pow(this.gazeState.y - 0.5, 2)
                         ) * 3);
-                        const avgSteps = 80 - foveaFactor * 45;
-
-                        // Update shared state (read by render loop)
-                        this.gazeState = {
-                            x: gazeX,
-                            y: gazeY,
-                            lastUpdate: performance.now(),
-                            avgSteps: avgSteps
-                        };
+                        this.gazeState.avgSteps = 64 - foveaFactor * 40;
                     }
                 }
             } catch (error) {
-                console.error('Gaze processing error:', error);
+                console.error('Gaze error:', error);
             }
 
-            // Run gaze loop at ~30Hz (33ms interval)
-            setTimeout(processGaze, 33);
+            setTimeout(processGaze, 33); // ~30Hz
         };
 
         processGaze();
     }
 
     /**
-     * Render loop - runs as fast as possible using requestAnimationFrame
-     * Reads from shared gazeState without waiting for gaze processing
+     * Render loop - runs at max FPS
      */
     _startRenderLoop() {
         const render = () => {
             if (!this.isRunning || this.currentScreen !== SCREENS.DEMO) return;
 
-            // Read from shared gaze state (non-blocking)
             const { x: gazeX, y: gazeY, avgSteps } = this.gazeState;
 
-            // Update renderer with current gaze
             this.renderer.setGazePoint(gazeX, gazeY);
             this.demoScreen.updateGazePosition(gazeX, gazeY);
-
-            // Update renderer settings
             this.renderer.setHeatmap(this.demoScreen.shouldShowHeatmap());
-
-            // Render frame
             this.renderer.render();
 
-            // Track compute cost
             this.computeTracker.recordFrame(avgSteps);
 
-            // Update debug panel if visible
+            // Update debug panel
             if (this.debugPanel.isVisible()) {
                 this.frameCount++;
                 const now = performance.now();
@@ -306,7 +266,7 @@ class App {
                     ) * 3),
                     avgSteps: avgSteps,
                     eyeOpenness: 1.0,
-                    calibrationScore: this.calibrationQuality,
+                    calibrationScore: 85,
                     faceDetected: !!this.lastLandmarks
                 });
 
@@ -323,14 +283,10 @@ class App {
         this.isRunning = false;
         this.debugPanel.hide();
 
-        // End analytics tracking
         this.computeTracker.endSession();
-
-        // Get analytics summary
         const summary = this.computeTracker.getSummary();
         console.log('Session Analytics:', summary);
 
-        // Show results
         this._showScreen(SCREENS.RESULTS);
         this.resultsScreen.updateAnalytics(summary);
     }
@@ -338,24 +294,19 @@ class App {
     _restartFromHome() {
         this.resultsScreen.reset();
         this._showScreen(SCREENS.HOME);
-
-        // Reset Kalman filter
         this.kalmanFilter.reset();
     }
 
     _showScreen(screen) {
-        // Hide all screens
         this.homeScreen.hide();
         this.demoScreen.hide();
         this.resultsScreen.hide();
 
-        // Hide calibration overlay if exists
         const calibrationOverlay = document.getElementById('calibration-overlay');
         if (calibrationOverlay) {
             calibrationOverlay.style.display = screen === SCREENS.CALIBRATION ? 'block' : 'none';
         }
 
-        // Show requested screen
         this.currentScreen = screen;
 
         switch (screen) {
@@ -374,7 +325,6 @@ class App {
     }
 }
 
-// Start app when DOM is ready
 document.addEventListener('DOMContentLoaded', () => {
     window.app = new App();
 });

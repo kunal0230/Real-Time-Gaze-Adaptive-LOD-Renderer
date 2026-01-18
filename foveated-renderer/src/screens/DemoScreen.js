@@ -22,7 +22,7 @@ export class DemoScreen {
                 
                 <div class="demo-overlay">
                     <div class="timer-display" id="timer-display">
-                        <span class="timer-icon"></span>
+                        <span class="timer-icon">⏱️</span>
                         <span class="timer-value" id="timer-value">45</span>
                         <span class="timer-label">sec</span>
                     </div>

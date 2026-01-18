@@ -1,36 +1,53 @@
 /**
  * MediaPipe landmark indices for eye tracking
- * Uses all 478 landmarks for maximum accuracy
+ * Ported from EyeTrax constants.py
  */
 
-// All 478 MediaPipe Face Mesh landmarks (0-477)
-// Landmarks 0-467: Face mesh points
-// Landmarks 468-477: Iris landmarks (5 per eye)
-export const ALL_LANDMARK_COUNT = 478;
+export const LEFT_EYE_INDICES = [
+  107, 66, 105, 63, 70,
+  55, 65, 52, 53, 46,
+  468, 469, 470, 471, 472,
+  133, 33,
+  173, 157, 158, 159, 160, 161, 246,
+  155, 154, 153, 145, 144, 163, 7,
+  243, 190, 56, 28, 27, 29, 30, 247,
+  130, 25, 110, 24, 23, 22, 26, 112,
+  244, 189, 221, 222, 223, 224, 225, 113,
+  226, 31, 228, 229, 230, 231, 232, 233,
+  193, 245, 128, 121, 120, 119, 118, 117,
+  111, 35, 124, 143, 156,
+];
 
-// Iris-specific landmarks for precise gaze tracking
-export const LEFT_IRIS_INDICES = [468, 469, 470, 471, 472];
-export const RIGHT_IRIS_INDICES = [473, 474, 475, 476, 477];
+export const RIGHT_EYE_INDICES = [
+  336, 296, 334, 293, 300,
+  285, 295, 282, 283, 276,
+  473, 476, 475, 474, 477,
+  362, 263,
+  398, 384, 385, 386, 387, 388, 466,
+  382, 381, 380, 374, 373, 390, 249,
+  463, 414, 286, 258, 257, 259, 260, 467,
+  359, 255, 339, 254, 253, 252, 256, 341,
+  464, 413, 441, 442, 443, 444, 445, 342,
+  446, 261, 448, 449, 450, 451, 452, 453,
+  417, 465, 357, 350, 349, 348, 347, 346,
+  340, 265, 353, 372, 383,
+];
 
-// Eye corner landmarks for blink detection
-export const LEFT_EYE_CORNERS = {
-  inner: 133,
-  outer: 33,
-  top: 159,
-  bottom: 145
-};
+export const MUTUAL_INDICES = [
+  4,    // Nose
+  10,   // Very top
+  151,  // Forehead
+  9,    // Between brow
+  152,  // Chin
+  234,  // Very left
+  454,  // Very right
+  58,   // Left jaw
+  288,  // Right jaw
+];
 
-export const RIGHT_EYE_CORNERS = {
-  inner: 362,
-  outer: 263,
-  top: 386,
-  bottom: 374
-};
-
-// Key face landmarks for pose estimation
-export const POSE_LANDMARKS = {
-  nose: 4,
-  leftEyeCorner: 33,
-  rightEyeCorner: 263,
-  topOfHead: 10
-};
+// Combined indices for feature extraction
+export const ALL_FEATURE_INDICES = [
+  ...LEFT_EYE_INDICES,
+  ...RIGHT_EYE_INDICES,
+  ...MUTUAL_INDICES,
+];
