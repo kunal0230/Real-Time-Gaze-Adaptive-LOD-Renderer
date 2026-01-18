@@ -114,10 +114,33 @@ class App {
     }
 
     _startFaceDetectionLoop() {
+        let lastTime = performance.now();
+        let frameCount = 0;
+        let lastFpsTime = lastTime;
+
         const detectFace = async () => {
             if (this.currentScreen !== SCREENS.HOME) {
                 requestAnimationFrame(detectFace);
                 return;
+            }
+
+            // Calculate FPS
+            const now = performance.now();
+            frameCount++;
+            if (now - lastFpsTime >= 1000) {
+                const fps = frameCount * 1000 / (now - lastFpsTime);
+
+                // Update stats on home screen
+                if (this.video && this.video.videoWidth) {
+                    this.homeScreen.updateStats(
+                        fps,
+                        this.video.videoWidth,
+                        this.video.videoHeight
+                    );
+                }
+
+                frameCount = 0;
+                lastFpsTime = now;
             }
 
             if (this.video && this.gazeEstimator) {

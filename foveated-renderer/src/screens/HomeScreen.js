@@ -79,6 +79,18 @@ export class HomeScreen {
                                 <div class="spinner"></div>
                                 <p>Initializing camera...</p>
                             </div>
+                            
+                            <!-- Stats Overlay -->
+                            <div class="stats-overlay">
+                                <div class="stat-pill">
+                                    <span class="stat-icon">📷</span>
+                                    <span id="stat-resolution">loading...</span>
+                                </div>
+                                <div class="stat-pill">
+                                    <span class="stat-icon">⚡</span>
+                                    <span id="stat-fps">--</span> FPS
+                                </div>
+                            </div>
                         </div>
                         <div class="requirements-list">
                             <div class="req-item">
@@ -122,6 +134,10 @@ export class HomeScreen {
         this.cameraStatus = document.getElementById('camera-status');
         this.tutorialBtn = document.getElementById('tutorial-btn');
         this.rendererBadge = document.getElementById('renderer-badge');
+
+        this.statResolution = document.getElementById('stat-resolution');
+        this.statFps = document.getElementById('stat-fps');
+        this.statConfidence = document.getElementById('stat-confidence');
 
         this.startBtn.addEventListener('click', () => {
             if (this.onStart && this.faceReady) {
@@ -179,6 +195,12 @@ export class HomeScreen {
         const statusDot = this.cameraStatus.querySelector('.status-dot');
         const statusText = this.cameraStatus.querySelector('.status-text');
 
+        // Update Stats Card Confidence
+        if (this.statConfidence) {
+            this.statConfidence.textContent = detected ? 'Detected' : 'Searching';
+            this.statConfidence.className = `stat-value ${detected ? 'good' : 'bad'}`;
+        }
+
         if (ready) {
             this.startBtn.classList.add('ready');
             statusDot.classList.add('ready');
@@ -208,6 +230,20 @@ export class HomeScreen {
 
     setOnTutorial(callback) {
         this.onTutorial = callback;
+    }
+
+    updateStats(fps, width, height) {
+        if (this.statFps) {
+            this.statFps.textContent = Math.round(fps);
+            // Color code FPS
+            if (fps > 50) this.statFps.className = 'stat-value good';
+            else if (fps > 30) this.statFps.className = 'stat-value ok';
+            else this.statFps.className = 'stat-value bad';
+        }
+
+        if (this.statResolution && width && height) {
+            this.statResolution.textContent = `${width}x${height}`;
+        }
     }
 
     show() {

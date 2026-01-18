@@ -1632,3 +1632,40 @@ body {
   transform: translateY(-2px);
   box-shadow: 0 8px 24px rgba(16, 185, 129, 0.4);
 }
+
+/* ═══════════════════════════════════════════════════════════════════
+   STATS OVERLAY (Video Feed)
+   ═══════════════════════════════════════════════════════════════════ */
+
+.stats-overlay {
+  position: absolute;
+  top: 15px;
+  right: 15px;
+  display: flex;
+  gap: 10px;
+  z-index: 10;
+}
+
+.stat-pill {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 20px;
+  font-size: 0.85rem;
+  color: white;
+  font-family: 'JetBrains Mono', monospace;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.stat-icon {
+  font-size: 0.9rem;
+}
+
+#stat-fps {
+  font-weight: 700;
+  color: var(--accent);
+}
