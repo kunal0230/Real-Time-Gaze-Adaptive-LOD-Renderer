@@ -171,24 +171,20 @@ export class ForestValley extends BaseScene {
                 ));
             }
 
-            // Blue daytime sky
+            // Bright blue sky
             vec3 getSky(vec3 rd) {
                 float y = rd.y;
                 
-                // Sky gradient - blue to light blue to horizon haze
-                vec3 zenith = vec3(0.4, 0.65, 0.95);
-                vec3 horizon = vec3(0.7, 0.8, 0.9);
-                vec3 ground = vec3(0.6, 0.7, 0.75);
+                // Vibrant sky gradient
+                vec3 zenith = vec3(0.3, 0.55, 0.95);
+                vec3 horizon = vec3(0.55, 0.75, 0.95);
                 
                 vec3 sky = mix(horizon, zenith, max(y, 0.0));
-                if (y < 0.0) {
-                    sky = mix(horizon, ground, min(-y * 2.0, 1.0));
-                }
                 
                 // Sun
                 float sun = max(dot(rd, SUN_DIR), 0.0);
-                sky += vec3(1.0, 0.95, 0.8) * pow(sun, 32.0) * 0.5;
-                sky += vec3(1.0, 0.98, 0.9) * pow(sun, 256.0) * 1.0;
+                sky += vec3(1.0, 0.95, 0.8) * pow(sun, 24.0) * 0.6;
+                sky += vec3(1.0, 1.0, 0.95) * pow(sun, 256.0) * 1.2;
                 
                 return sky;
             }
@@ -245,13 +241,13 @@ export class ForestValley extends BaseScene {
                     vec3 ref = reflect(rd, wNor);
                     float fresnel = pow(1.0 - max(dot(wNor, -rd), 0.0), 2.5);
                     
-                    // Blue-green water
-                    vec3 waterCol = vec3(0.2, 0.4, 0.5);
-                    col = mix(waterCol, getSky(ref), 0.3 + fresnel * 0.4);
+                    // Vivid turquoise water
+                    vec3 waterCol = vec3(0.15, 0.5, 0.6);
+                    col = mix(waterCol, getSky(ref), 0.25 + fresnel * 0.35);
                     
-                    // Subtle sun reflection
+                    // Sun reflection
                     float spec = pow(max(dot(ref, SUN_DIR), 0.0), 64.0);
-                    col += vec3(1.0, 0.95, 0.8) * spec * 0.8;
+                    col += vec3(1.0, 0.95, 0.85) * spec * 1.0;
                 }
                 else if (hit.y >= 0.0) {
                     vec3 pos = ro + rd * hit.x;
@@ -260,20 +256,20 @@ export class ForestValley extends BaseScene {
                     vec3 mate;
                     
                     if (hit.y < 0.5) {
-                        // Grass - vibrant green with variation
+                        // Grass - bright vibrant green
                         float grassVar = noise(pos.xz * 3.0);
-                        vec3 darkGrass = vec3(0.2, 0.45, 0.15);
-                        vec3 lightGrass = vec3(0.35, 0.6, 0.2);
-                        mate = mix(darkGrass, lightGrass, grassVar * (1.0 - lod * 0.5) + 0.3);
+                        vec3 darkGrass = vec3(0.25, 0.55, 0.18);
+                        vec3 lightGrass = vec3(0.45, 0.75, 0.28);
+                        mate = mix(darkGrass, lightGrass, grassVar * (1.0 - lod * 0.4) + 0.35);
                         
-                        // Slight yellow tint on slopes
+                        // Yellow-green on slopes
                         float slope = 1.0 - nor.y;
-                        mate = mix(mate, vec3(0.5, 0.55, 0.25), smoothstep(0.3, 0.6, slope) * 0.3);
+                        mate = mix(mate, vec3(0.55, 0.6, 0.3), smoothstep(0.3, 0.6, slope) * 0.25);
                     }
                     else if (hit.y < 1.5) {
-                        // Tree
-                        vec3 trunkBrown = vec3(0.35, 0.25, 0.15);
-                        vec3 canopyGreen = vec3(0.15, 0.4, 0.15);
+                        // Tree - richer colors
+                        vec3 trunkBrown = vec3(0.4, 0.28, 0.15);
+                        vec3 canopyGreen = vec3(0.18, 0.5, 0.18);
                         mate = pos.y > 1.0 ? canopyGreen : trunkBrown;
                     }
                     else {
@@ -281,20 +277,15 @@ export class ForestValley extends BaseScene {
                         mate = vec3(0.45, 0.42, 0.38);
                     }
                     
-                    // Lighting - soft daylight
+                    // Bright lighting - more contrast
                     float sun = max(dot(nor, SUN_DIR), 0.0);
                     float sky = 0.5 + 0.5 * nor.y;
                     
                     vec3 sunCol = vec3(1.0, 0.95, 0.85);
                     vec3 skyCol = vec3(0.5, 0.6, 0.8);
                     
-                    vec3 lin = sunCol * sun * 0.8 + skyCol * sky * 0.4;
+                    vec3 lin = sunCol * sun * 1.1 + skyCol * sky * 0.45;
                     col = mate * lin;
-                    
-                    // Atmospheric fog
-                    float fog = 1.0 - exp(-hit.x * 0.02);
-                    vec3 fogCol = vec3(0.65, 0.75, 0.85);
-                    col = mix(col, fogCol, fog);
                 }
                 
                 if (u_showHeatmap) {
