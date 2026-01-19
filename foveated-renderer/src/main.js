@@ -53,6 +53,7 @@ class App {
 
         // State
         this.isRunning = false;
+        this.isPaused = false;
         this.selectedScene = null;
         this.frameCount = 0;
         this.fps = 0;
@@ -80,6 +81,9 @@ class App {
         this.demoScreen.setOnDebugToggle((show) => {
             if (show) this.debugPanel.show();
             else this.debugPanel.hide();
+        });
+        this.demoScreen.setOnPauseToggle((paused) => {
+            this.isPaused = paused;
         });
         this.resultsScreen.setOnRestart(() => this._restartFromHome());
 
@@ -218,6 +222,12 @@ class App {
         const processGaze = async () => {
             if (!this.isRunning || this.currentScreen !== SCREENS.DEMO) return;
 
+            // Skip processing if paused, but keep the loop alive
+            if (this.isPaused) {
+                setTimeout(processGaze, 33);
+                return;
+            }
+
             try {
                 const results = await this.gazeEstimator.processFrame(this.video);
 
@@ -261,11 +271,18 @@ class App {
         const render = () => {
             if (!this.isRunning || this.currentScreen !== SCREENS.DEMO) return;
 
+            // Skip rendering if paused, but keep the loop alive
+            if (this.isPaused) {
+                requestAnimationFrame(render);
+                return;
+            }
+
             const { x: gazeX, y: gazeY, avgSteps } = this.gazeState;
 
             this.renderer.setGazePoint(gazeX, gazeY);
             this.demoScreen.updateGazePosition(gazeX, gazeY);
             this.renderer.setHeatmap(this.demoScreen.shouldShowHeatmap());
+            this.renderer.setExtraDetails(this.demoScreen.shouldShowExtraDetails());
             this.renderer.render();
 
             this.computeTracker.recordFrame(avgSteps);

@@ -11,6 +11,8 @@ export class DemoScreen {
         this.timerInterval = null;
         this.remainingTime = 45;
         this.isRunning = false;
+        this.isPaused = false;
+        this.onPauseToggle = null;
 
         this._createLayout();
     }
@@ -21,10 +23,15 @@ export class DemoScreen {
                 <canvas id="render-canvas"></canvas>
                 
                 <div class="demo-overlay">
-                    <div class="timer-display" id="timer-display">
-                        <span class="timer-icon">⏱️</span>
-                        <span class="timer-value" id="timer-value">45</span>
-                        <span class="timer-label">sec</span>
+                    <div class="timer-container">
+                        <div class="timer-display" id="timer-display">
+                            <span class="timer-icon">⏱️</span>
+                            <span class="timer-value" id="timer-value">45</span>
+                            <span class="timer-label">sec</span>
+                        </div>
+                        <button class="pause-button" id="pause-button" title="Pause/Resume">
+                            <span class="pause-icon" id="pause-icon">⏸️</span>
+                        </button>
                     </div>
                     
                     <div class="demo-controls">
@@ -48,6 +55,11 @@ export class DemoScreen {
                             <input type="checkbox" id="debug-mode">
                             <label for="debug-mode">Debug Mode</label>
                         </div>
+                        
+                        <div class="control-group checkbox-group">
+                            <input type="checkbox" id="extra-details">
+                            <label for="extra-details">Extra Details</label>
+                        </div>
                     </div>
                     
                     <div class="gaze-indicator" id="gaze-indicator">
@@ -61,16 +73,23 @@ export class DemoScreen {
         this.canvas = document.getElementById('render-canvas');
         this.timerDisplay = document.getElementById('timer-display');
         this.timerValue = document.getElementById('timer-value');
+        this.pauseButton = document.getElementById('pause-button');
+        this.pauseIcon = document.getElementById('pause-icon');
         this.smoothingSlider = document.getElementById('smoothing-slider');
         this.smoothingValue = document.getElementById('smoothing-value');
         this.showHeatmap = document.getElementById('show-heatmap');
         this.showGaze = document.getElementById('show-gaze');
         this.debugMode = document.getElementById('debug-mode');
+        this.extraDetails = document.getElementById('extra-details');
         this.gazeIndicator = document.getElementById('gaze-indicator');
 
         // Event listeners
         this.smoothingSlider.addEventListener('input', () => {
             this.smoothingValue.textContent = this.smoothingSlider.value;
+        });
+
+        this.pauseButton.addEventListener('click', () => {
+            this.togglePause();
         });
 
         this.showGaze.addEventListener('change', () => {
@@ -113,6 +132,13 @@ export class DemoScreen {
     }
 
     /**
+     * Check if extra details should be shown
+     */
+    shouldShowExtraDetails() {
+        return this.extraDetails.checked;
+    }
+
+    /**
      * Update gaze indicator position
      */
     updateGazePosition(x, y) {
@@ -128,16 +154,20 @@ export class DemoScreen {
     startTimer() {
         this.remainingTime = 45;
         this.isRunning = true;
+        this.isPaused = false;
         this._updateTimerDisplay();
+        this._updatePauseButton();
 
         this.timerInterval = setInterval(() => {
-            this.remainingTime--;
-            this._updateTimerDisplay();
+            if (!this.isPaused) {
+                this.remainingTime--;
+                this._updateTimerDisplay();
 
-            if (this.remainingTime <= 0) {
-                this.stopTimer();
-                if (this.onTimerEnd) {
-                    this.onTimerEnd();
+                if (this.remainingTime <= 0) {
+                    this.stopTimer();
+                    if (this.onTimerEnd) {
+                        this.onTimerEnd();
+                    }
                 }
             }
         }, 1000);
@@ -148,9 +178,71 @@ export class DemoScreen {
      */
     stopTimer() {
         this.isRunning = false;
+        this.isPaused = false;
         if (this.timerInterval) {
             clearInterval(this.timerInterval);
             this.timerInterval = null;
+        }
+        this._updatePauseButton();
+    }
+
+    /**
+     * Toggle pause state
+     */
+    togglePause() {
+        if (!this.isRunning) return;
+
+        this.isPaused = !this.isPaused;
+        this._updatePauseButton();
+
+        if (this.onPauseToggle) {
+            this.onPauseToggle(this.isPaused);
+        }
+    }
+
+    /**
+     * Pause the timer
+     */
+    pauseTimer() {
+        if (!this.isRunning || this.isPaused) return;
+        this.isPaused = true;
+        this._updatePauseButton();
+
+        if (this.onPauseToggle) {
+            this.onPauseToggle(this.isPaused);
+        }
+    }
+
+    /**
+     * Resume the timer
+     */
+    resumeTimer() {
+        if (!this.isRunning || !this.isPaused) return;
+        this.isPaused = false;
+        this._updatePauseButton();
+
+        if (this.onPauseToggle) {
+            this.onPauseToggle(this.isPaused);
+        }
+    }
+
+    /**
+     * Check if timer is paused
+     */
+    isTimerPaused() {
+        return this.isPaused;
+    }
+
+    _updatePauseButton() {
+        if (this.pauseIcon) {
+            this.pauseIcon.textContent = this.isPaused ? '▶️' : '⏸️';
+        }
+        if (this.pauseButton) {
+            this.pauseButton.title = this.isPaused ? 'Resume' : 'Pause';
+            this.pauseButton.classList.toggle('paused', this.isPaused);
+        }
+        if (this.timerDisplay) {
+            this.timerDisplay.classList.toggle('paused', this.isPaused);
         }
     }
 
@@ -184,6 +276,10 @@ export class DemoScreen {
         this.onDebugToggle = callback;
     }
 
+    setOnPauseToggle(callback) {
+        this.onPauseToggle = callback;
+    }
+
     /**
      * Show the screen
      */
@@ -204,8 +300,10 @@ export class DemoScreen {
      */
     reset() {
         this.remainingTime = 45;
-        this.timerDisplay.classList.remove('warning', 'critical');
+        this.isPaused = false;
+        this.timerDisplay.classList.remove('warning', 'critical', 'paused');
         this._updateTimerDisplay();
+        this._updatePauseButton();
         this.showHeatmap.checked = false;
         this.showGaze.checked = false;
         this.debugMode.checked = false;

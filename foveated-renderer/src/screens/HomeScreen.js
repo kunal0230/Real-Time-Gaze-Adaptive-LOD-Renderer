@@ -88,7 +88,7 @@ export class HomeScreen {
                                 </div>
                                 <div class="stat-pill">
                                     <span class="stat-icon">⚡</span>
-                                    <span id="stat-fps">--</span> FPS
+                                    <span id="stat-fps">--</span> Hz
                                 </div>
                             </div>
                         </div>

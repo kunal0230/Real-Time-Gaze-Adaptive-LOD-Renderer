@@ -18,7 +18,8 @@ export class SceneRenderer {
         this.gazeY = 0.5;
         this.time = 0;
         this.showHeatmap = false;
-        this.foveaRadius = 0.15;
+        this.extraDetails = false;
+        this.foveaRadius = 0.18; // Balanced for visible LOD difference
 
         // Uniforms
         this.uResolution = null;
@@ -26,6 +27,7 @@ export class SceneRenderer {
         this.uTime = null;
         this.uFoveaRadius = null;
         this.uShowHeatmap = null;
+        this.uExtraDetails = null;
     }
 
     /**
@@ -48,6 +50,10 @@ export class SceneRenderer {
         this.showHeatmap = show;
     }
 
+    setExtraDetails(show) {
+        this.extraDetails = show;
+    }
+
     setGazePoint(x, y) {
         this.gazeX = x;
         this.gazeY = 1.0 - y;
@@ -65,6 +71,7 @@ export class SceneRenderer {
         this.gl.uniform1f(this.uTime, this.time);
         this.gl.uniform1f(this.uFoveaRadius, this.foveaRadius);
         this.gl.uniform1i(this.uShowHeatmap, this.showHeatmap ? 1 : 0);
+        this.gl.uniform1i(this.uExtraDetails, this.extraDetails ? 1 : 0);
 
         this.gl.drawArrays(this.gl.TRIANGLE_STRIP, 0, 4);
     }
@@ -97,12 +104,12 @@ export class SceneRenderer {
             return;
         }
 
-        // Get uniform locations
         this.uResolution = this.gl.getUniformLocation(this.program, 'u_resolution');
         this.uGaze = this.gl.getUniformLocation(this.program, 'u_gaze');
         this.uTime = this.gl.getUniformLocation(this.program, 'u_time');
         this.uFoveaRadius = this.gl.getUniformLocation(this.program, 'u_foveaRadius');
         this.uShowHeatmap = this.gl.getUniformLocation(this.program, 'u_showHeatmap');
+        this.uExtraDetails = this.gl.getUniformLocation(this.program, 'u_extraDetails');
 
         // Set up vertex buffer
         this._initBuffers();

@@ -357,6 +357,77 @@ body {
   }
 }
 
+/* Timer Container with Pause Button */
+.timer-container {
+  position: absolute;
+  top: 20px;
+  right: 20px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  pointer-events: auto;
+}
+
+.timer-container .timer-display {
+  position: static;
+}
+
+.pause-button {
+  background: rgba(0, 0, 0, 0.8);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  padding: 12px 16px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.pause-button:hover {
+  background: rgba(99, 102, 241, 0.3);
+  border-color: var(--primary);
+  transform: scale(1.05);
+}
+
+.pause-button:active {
+  transform: scale(0.98);
+}
+
+.pause-icon {
+  font-size: 1.4rem;
+  line-height: 1;
+}
+
+.pause-button.paused {
+  background: rgba(16, 185, 129, 0.2);
+  border-color: var(--accent);
+}
+
+.pause-button.paused:hover {
+  background: rgba(16, 185, 129, 0.3);
+}
+
+.timer-display.paused {
+  border-color: var(--accent);
+  color: var(--accent-light);
+  animation: none;
+}
+
+.timer-display.paused::after {
+  content: 'PAUSED';
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 0.7rem;
+  color: var(--accent);
+  margin-top: 4px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+}
+
 /* Demo Controls */
 .demo-controls {
   position: absolute;
